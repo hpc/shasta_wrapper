@@ -1,0 +1,46 @@
+#!/bin/bash
+for file in /root/lib/*; do
+    source $file
+done
+
+function main {
+    export IMS_PUBLIC_KEY_ID=f25c56cb-fb05-498c-9427-582e0098fb9f
+    case $1 in
+        co*)
+            shift
+            config "$@"
+            ;;
+        cl*)
+            shift
+            cluster "$@"
+            ;;
+        bo*)
+            shift
+            bos "$@"
+            ;;
+        re*)
+            shift
+            recipe "$@"
+            ;;
+        im*)
+            shift
+            image "$@"
+            ;;
+        *)
+            help_shasta
+            ;;
+    esac
+}
+
+function help_shasta {
+  echo "USAGE: $0 [action]"
+  echo "DESC: Intended to provide a more straitforward interface to the cray shasta environment. You can get more functionality via the direct 'cray' commands. However, they are very cumbersome to use"
+  echo "ACTIONS:"
+  echo "  config : ansible configuration options"
+  echo "  cluster : see cluster information"
+  echo "  bos : boot settings (session templates)"
+  echo "  recipe : recipes for building images"
+  echo "  image : image controls"
+}
+
+main "$@"

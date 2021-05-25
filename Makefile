@@ -2,7 +2,7 @@ NAME			= shasta_wrapper
 CONFDIR			= /etc
 LIBDIR			= /usr/share/shasta_wrapper/lib
 SBINDIR			= /usr/sbin
-VERSION			= 0.5.0
+VERSION			= 0.3.0
 RELEASE			= 0.1
 
 SOURCE			= src
@@ -53,3 +53,5 @@ install: all
 	cp -ar "$(SOURCE_SBIN)/"* "$(DESTDIR)$(SBINDIR)/"
 	cp -ar "$(SOURCE_LIB)/"* "$(DESTDIR)$(LIBDIR)/"
 	sed -i 's|%LIBDIR%|$(LIBDIR)|g' "$(DESTDIR)$(SBINDIR)/shasta"
+	sed -i 's|%VERSION%|$(VERSION)|g' "$(DESTDIR)$(SBINDIR)/shasta"
+	sed -i 's|%RELEASE%|$(RELEASE)|g' "$(DESTDIR)$(SBINDIR)/shasta"

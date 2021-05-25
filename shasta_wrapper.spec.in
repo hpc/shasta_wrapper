@@ -1,0 +1,53 @@
+
+
+%define _source_filedigest_algorithm	md5
+%define _binary_filedigest_algorithm	md5
+%define _binary_payload	w9.gzdio
+
+# Create a variable that can be used to monkey with the release name with
+# --define This is an attempt to support the Fedora distro rpm naming
+# nightmare.
+%{!?release_extras:%define release_extras %{nil}}
+
+Summary: Provides a more streamlimed interface for managing the shasta cluster.
+Name: %NAME%
+Epoch: 0
+Version: %VERSION%
+Release: %RELEASE%
+License: None
+Group: System Environment/Base
+Source0: %{name}.tar.gz
+BuildRoot: %{_topdir}/BUILDROOT/%{name}-%{version}-%{release}
+BuildArch: noarch
+Requires: craycli
+
+%description
+Provides a more streamlimed interface for managing the shasta cluster.
+
+%prep
+%setup -q
+%build
+make
+
+%install
+make install DESTDIR=%{buildroot}
+
+%clean
+rm -r %{buildroot} || true
+
+%files
+%defattr(-,root,root)
+%attr(0750,root,root) %SBINDIR%/shasta
+%config %attr(0640,root,root) %CONFDIR%/cluster_defaults.conf
+%attr(0640,root,root) %LIBDIR%/*
+
+%post
+
+%preun
+
+%postun
+
+%changelog
+* Tue May 25 2021 Graham Van Heule <grahamvh@lanl.gov>
+- v0.4.0
+- Hacked into being

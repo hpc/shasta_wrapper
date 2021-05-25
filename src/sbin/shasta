@@ -1,7 +1,7 @@
 #!/bin/bash
 VERSION="0.2.0"
 
-for file in /root/lib/*; do
+for file in %LIBDIR%/*; do
     source $file
 done
 

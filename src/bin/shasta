@@ -1,4 +1,6 @@
 #!/bin/bash
+VERSION="0.2.0"
+
 for file in /root/lib/*; do
     source $file
 done
@@ -26,6 +28,10 @@ function main {
             shift
             image "$@"
             ;;
+        ve*)
+            shift
+            echo "shasta_wrapper $VERSION"
+            ;;
         *)
             help_shasta
             ;;
@@ -41,6 +47,7 @@ function help_shasta {
   echo "  bos : boot settings (session templates)"
   echo "  recipe : recipes for building images"
   echo "  image : image controls"
+  echo "  version : print software version"
 }
 
 main "$@"

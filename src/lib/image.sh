@@ -92,6 +92,8 @@ function image_delete {
     for image in "$@"; do
         verbose_cmd cray ims images delete "$image"
     done
+    echo "Cleaning up image artifacts..."
+    image_clean_deleted_artifacts
 }
 
 function image_build {
@@ -341,3 +343,13 @@ function image_configure {
     RETURN="$NEW_IMAGE_ID"
     return 0
 }
+
+function image_clean_deleted_artifacts {
+    local ARTIFACTS=()
+    local artifact
+    ARTIFACTS=( $(cray artifacts list boot-images --format json | jq '.artifacts' | jq '.[].Key' | sed 's/"//g' | grep ^deleted/) )
+    for artifact in "${ARTIFACTS[@]}"; do
+        cray artifacts delete boot-images "$artifact"
+    done
+}
+

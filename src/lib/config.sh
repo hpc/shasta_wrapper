@@ -39,7 +39,7 @@ function config {
 
 function config_help {
     echo    "USAGE: $0 config [action]"
-    echo    "DESC: Each config is s declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A config is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'" 
+    echo    "DESC: Each config is s declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A config is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
     echo -e "\tapply [config] [other options] : Runs the given config against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing config"
@@ -48,7 +48,7 @@ function config_help {
     echo -e "\tdescribe [config] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [config] : shows all info on a given config"
-    
+
     exit 1
 }
 
@@ -98,8 +98,8 @@ function config_clone {
     set -e
     tmpdir
     TMPFILE="$TMPDIR/cfs_config.json"
-    
-    cray cfs configurations describe $SRC --format json --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE" 
+
+    cray cfs configurations describe $SRC --format json --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE"
 
     cray cfs configurations update $DEST --file "$TMPFILE" --format json > /dev/null 2>&1
 }
@@ -115,7 +115,7 @@ function config_edit {
     set -e
 
     local CONFIG_DIR="/root/templates/cfs_configurations/"
-    cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null 
+    cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
     if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
         echo "Error! Config '$CONFIG' does not exist!"
@@ -141,7 +141,7 @@ function config_apply {
     local CONFIG=$1
     shift
     local NAME=cfs`date +%s`
-    local JOB POD TRIED MAX_TRIES RET 
+    local JOB POD TRIED MAX_TRIES RET
 
     if [[ -z "$CONFIG" ]]; then
         echo "usage: $0 config apply <configuration name> <cray cfs sessions create args>"

@@ -48,7 +48,7 @@ function image_help {
     echo -e "\tconfigure [image id] [group name] [config name] : build a new image configuring it"
     echo -e "\tdelete [image id] : delete a image"
     echo -e "\tlist : list all images"
-    
+
     exit 1
 }
 
@@ -101,16 +101,19 @@ function image_build {
     local NEW_IMAGE_NAME="$4"
     local BOS_TEMPLATE="$5"
 
+
     if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
         echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
         exit 2
     fi
+
+
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts" 1>&2
         exit 2
     fi
-    
+
     cray cfs configurations describe "$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         echo "'$CONFIG_NAME' is not a valid configuration." 1>&2
@@ -118,6 +121,9 @@ function image_build {
     fi
     if [[ -z "$NEW_IMAGE_NAME" ]]; then
         NEW_IMAGE_NAME="img_$GROUP_NAME"
+    fi
+    if [[ -n "$BOS_TEMPLATE" ]]; then
+        echo "[$GROUP_NAME] Image will be mapped to '$BOS_TEMPLATE' if build/configure succeed."
     fi
 
     mkdir -p "$IMAGE_LOGDIR"
@@ -129,7 +135,7 @@ function image_build {
     fi
     BARE_IMAGE_ID="$RETURN"
 
-    
+
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
     image_configure "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
@@ -139,7 +145,7 @@ function image_build {
     CONFIG_IMAGE_ID="$RETURN"
 
 
-    
+
     if [[ -n "$BOS_TEMPLATE" ]]; then
         image_map "$BOS_TEMPLATE" "$CONFIG_IMAGE_ID" "$GROUP_NAME"
     fi
@@ -167,8 +173,8 @@ function image_map {
         exit 2
     fi
     if [[ -n "$GROUP" ]]; then
-        echo '[$GROUP] Mapping Successfull!'
-    else 
+        echo "[$GROUP] Mapping Successfull!"
+    else
         echo 'Mapping Successfull!'
     fi
     return 0
@@ -286,7 +292,7 @@ function image_configure {
         --configuration-name "$CONFIG_NAME" \
         --target-definition image \
         --target-group "$GROUP_NAME" "$IMAGE_ID" 2>&1
- 
+
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] cfs session creation failed! See logs for details" 1>&2
         echo "[$GROUP_NAME] cfs session creation failed! See logs for details"
@@ -296,7 +302,7 @@ function image_configure {
     cmd_wait_output "job =" cray cfs sessions describe "$SESSION_NAME"
 
     JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
-    cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB_ID" 
+    cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB_ID"
     POD_ID=$(kubectl describe job -n services "$JOB_ID" | grep 'Created pod:' | awk '{print $7}')
 
 

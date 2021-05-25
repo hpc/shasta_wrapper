@@ -55,8 +55,8 @@ function cmd_wait_output {
 }
 
 function verbose_cmd {
-    echo 
-    echo 
+    echo
+    echo
     echo "# $@"
     eval "$@"
     return $?

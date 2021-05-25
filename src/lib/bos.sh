@@ -46,7 +46,7 @@ function bos_help {
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
- 
+
     exit 1
 }
 
@@ -54,7 +54,7 @@ function bos_list {
     cluster_defaults_config
     echo "NAME(Nodes applied to at boot)"
     BOS_LINES=( $(cray bos sessiontemplate list --format json | jq '.[].name' | sed 's/"//g') )
-    
+
     for line in "${BOS_LINES[@]}"; do
         echo -n "$line"
         for group in "${!BOS_DEFAULT[@]}"; do
@@ -107,8 +107,8 @@ function bos_clone {
     set -e
     tmpdir
     TMPFILE="$TMPDIR/bos_sessiontemplate.json"
-    
-    cray bos sessiontemplate describe $SRC --format json > "$TMPFILE" 
+
+    cray bos sessiontemplate describe $SRC --format json > "$TMPFILE"
 
     cray bos sessiontemplate create --name $DEST --file "$TMPFILE" --format json
 }
@@ -136,7 +136,7 @@ function bos_edit {
     bos_exit_if_not_valid "$CONFIG"
 
     set -e
-    cray bos sessiontemplate describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json" 
+    cray bos sessiontemplate describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json"
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         echo "Error! Config '$CONFIG' does not exist!"

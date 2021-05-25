@@ -33,7 +33,7 @@ function recipe_help {
     echo -e "\tclone [cur recipe id] [new recipe name] : create a new recipe from existing one"
     echo -e "\tdelete [recipe id]: delete a recipe"
     echo -e "\tlist : list all recipes"
-    
+
     exit 1
 }
 
@@ -85,7 +85,7 @@ function recipe_clone {
     S3_ARTIFACT_KEY=$(echo "$RAW" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
     mkdir -p $RECIPE_NAME
     verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
-    tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME" 
+    tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
     rm -f $ARTIFACT_FILE
 
     cd $RECIPE_NAME
@@ -123,7 +123,7 @@ function recipe_edit {
     S3_ARTIFACT_KEY=$(echo "$RAW" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
     mkdir -p $RECIPE_NAME
     verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
-    tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME" 
+    tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
     rm -f $ARTIFACT_FILE
 
     cd $RECIPE_NAME

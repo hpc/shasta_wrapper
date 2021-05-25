@@ -181,6 +181,7 @@ function image_build_bare {
 
     if [[ -z "$RECIPE_ID" ]]; then
         echo "[$GROUP_NAME] Error. recipe id must be provided!" 1>&2
+        echo "[$GROUP_NAME] Error. recipe id must be provided!"
         exit 2
     fi
     refresh_recipes
@@ -188,6 +189,7 @@ function image_build_bare {
     	local RECIPE_NAME="${RECIPE_ID2NAME[$RECIPE_ID]}"
     else
         echo "[$GROUP_NAME] Error! RECIPE ID '$RECIPE_ID' doesn't exist." 1>&2
+        echo "[$GROUP_NAME] Error! RECIPE ID '$RECIPE_ID' doesn't exist."
         exit 2
     fi
     if [[ -z "$NEW_IMAGE_NAME" ]]; then
@@ -231,6 +233,7 @@ function image_build_bare {
     RET=$?
     if [[ $RET -eq 0 ]]; then
         echo "[$GROUP_NAME] IMAGE BUILD FAILED: job id '$JOB_ID'" 1>&2
+        echo "[$GROUP_NAME] IMAGE BUILD FAILED: job id '$JOB_ID'"
         exit 2
     fi
 
@@ -243,6 +246,7 @@ function image_build_bare {
     verbose_cmd cray ims images describe "$IMAGE_ID" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details" 1>&2
+        echo "[$GROUP_NAME] Error image build failed! See logs for details"
         exit 2
     fi
     echo "  Ok, image does appear to exist. Cleaning up the job..."
@@ -250,6 +254,7 @@ function image_build_bare {
     verbose_cmd cray ims jobs delete $IMS_JOB_ID
 
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID" 1>&2
+    echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID"
     RETURN="$IMAGE_ID"
     return 0
 }
@@ -270,6 +275,7 @@ function image_configure {
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts" 1>&2
+        echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
         exit 2
     fi
 
@@ -283,6 +289,7 @@ function image_configure {
  
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] cfs session creation failed! See logs for details" 1>&2
+        echo "[$GROUP_NAME] cfs session creation failed! See logs for details"
         exit 2
     fi
 
@@ -301,26 +308,30 @@ function image_configure {
 
     cmd_wait_output 'complete' cray cfs sessions describe "$SESSION_NAME"
 
-    cray cfs sessions describe cfsimage1621546992 --format json | jq '.status.session.succeeded' | grep -q 'true'
+    cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.session.succeeded' | grep -q 'true'
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] image configuation failed" 1>&2
+        echo "[$GROUP_NAME] image configuation failed"
         exit 2
     fi
 
-    NEW_IMAGE_ID=$(cray cfs sessions describe $SESSION_NAME --format json | jq '.status.artifacts[0].result_id' | sed 's/"//g')
+    NEW_IMAGE_ID=$(cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.artifacts[0].result_id' | sed 's/"//g')
 
     if [[ -z "$NEW_IMAGE_ID" ]]; then
         echo "[$GROUP_NAME] Could not determine image id for configured image." 1>&2
+        echo "[$GROUP_NAME] Could not determine image id for configured image."
         exit 2
     fi
     verbose_cmd cray ims images describe "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details" 1>&2
+        echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
         exit 2
     fi
 
     echo "Image successfully configured"
     echo "[$GROUP_NAME] Configured image created: '$NEW_IMAGE_ID'" 1>&2
+    echo "[$GROUP_NAME] Configured image created: '$NEW_IMAGE_ID'"
     RETURN="$NEW_IMAGE_ID"
     return 0
 }

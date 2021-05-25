@@ -19,7 +19,7 @@ function cluster {
             ;;
         reboot_nodes)
             shift
-            cluster_reboot_group "$@"
+            cluster_reboot_nodes "$@"
             ;;
         val*)
             shift
@@ -260,8 +260,8 @@ function cluster_reboot_group {
 
 
 function cluster_reboot_nodes {
-    GROUP="$1"
-    NODES="$2"
+    local GROUP="$1"
+    local NODES="$2"
     if [[ -z "$GROUP" ]]; then
         echo "USAGE: $0 cluster reboot_group [group] [nodes]" 1>&2
         exit 2

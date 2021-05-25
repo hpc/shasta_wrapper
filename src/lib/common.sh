@@ -79,3 +79,13 @@ function edit_file {
     fi
     return 0
 }
+
+function json_set_field {
+    FILE="$1"
+    FIELD="$2"
+    VALUE="$3"
+
+    jq "$FIELD = \"$VALUE\"" "$FILE" > "$FILE.tmp"
+    mv "$FILE.tmp" "$FILE"
+}
+

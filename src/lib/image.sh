@@ -26,6 +26,10 @@ function image {
             shift
             image_delete "$@"
             ;;
+        map)
+            shift
+            image_map "$@"
+            ;;
         sh*)
             shift
             image_describe "$@"
@@ -40,7 +44,7 @@ function image_help {
     echo    "USAGE: $0 image [action]"
     echo    "DESC: The images used by the system to boot nodes. To set an image to be used at boot,  See 'cray cfs configurations' for more detailed options."
     echo    "ACTIONS:"
-    echo -e "\tbuild [recipe id] : build a new image from the given recipe"
+    echo -e "\tbuild [recipe id] [group] [config] <image name>: build a new image from the given recipe"
     echo -e "\tconfigure [image id] [group name] [config name] : build a new image configuring it"
     echo -e "\tdelete [image id] : delete a image"
     echo -e "\tlist : list all images"
@@ -53,14 +57,14 @@ function refresh_images {
     echo "# cray ims images list --format json | jq '.[] | \"\\(.created)   \\(.id)   \\(.name)\"' | sed 's/\"//g' | sort"
 
     IFS=$'\n'
-    RAW=( $(cray ims images list --format json | jq '.[] | "\(.id) \(.name) \(.created)"' | sed 's/"//g') )
+    RAW=( $(cray ims images list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
     IFS=$' \t\n'
 
     for image in "${RAW[@]}"; do
         SPLIT=( $image )
         id="${SPLIT[0]}"
-        name="${SPLIT[1]}"
-        created="${SPLIT[2]}"
+        created="${SPLIT[1]}"
+        name="${SPLIT[*]:2}"
         IMAGE_ID2NAME[$id]=$name
         IMAGE_ID2CREATED[$id]=$created
     done
@@ -79,7 +83,12 @@ function image_list {
 function image_describe {
     verbose_cmd cray ims images describe "$1"
 }
+
 function image_delete {
+    if [[ -z "$1" ]]; then
+        echo "USAGE: $0 image delete [image1] <images...>" 1>&2
+        exit 2
+    fi
     for image in "$@"; do
         verbose_cmd cray ims images delete "$image"
     done
@@ -90,9 +99,10 @@ function image_build {
     local GROUP_NAME="$2"
     local CONFIG_NAME=$3
     local NEW_IMAGE_NAME="$4"
+    local BOS_TEMPLATE="$5"
 
     if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
-        echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" 1>&2
+        echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
         exit 2
     fi
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
@@ -120,13 +130,48 @@ function image_build {
     BARE_IMAGE_ID="$RETURN"
 
     
-    echo "[$GROUP_NAME] configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
+    echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
     image_configure "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] configure image failed... Not continuing"
         exit 2
     fi
+    CONFIG_IMAGE_ID="$RETURN"
+
+
     
+    if [[ -n "$BOS_TEMPLATE" ]]; then
+        image_map "$BOS_TEMPLATE" "$CONFIG_IMAGE_ID" "$GROUP_NAME"
+    fi
+}
+
+function image_map {
+    local BOS_TEMPLATE="$1"
+    local IMAGE_ID="$2"
+    local GROUP="$3"
+
+    if [[ -z "$BOS_TEMPLATE" || -z "$IMAGE_ID" ]]; then
+        echo "USAGE: $0 image map [bos template] [image id] <name>" 1>&2
+        exit 2
+    fi
+
+    IMAGE_ETAG=$(cray ims images list --format json | jq ".[] | select(.id == \"$IMAGE_ID\") " | jq '.link.etag' | sed 's/"//g')
+    if [[ -z "$IMAGE_ETAG" ]]; then
+        echo "etag could not be found for image: '$IMAGE_ID'. Did you provide a valid image id?" 1>&2
+        exit 2
+    fi
+
+    bos_update_template "$BOS_TEMPLATE" ".boot_sets.compute.etag" "$IMAGE_ETAG"
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to map image id '$IMAGE_ID' to bos template '$BOS_TEMPLATE'" 1>&2
+        exit 2
+    fi
+    if [[ -n "$GROUP" ]]; then
+        echo '[$GROUP] Mapping Successfull!'
+    else 
+        echo 'Mapping Successfull!'
+    fi
+    return 0
 }
 
 function image_build_bare {
@@ -190,21 +235,21 @@ function image_build_bare {
     fi
 
     set +e
-    cmd_wait_output "success" cray ims jobs describe $IMS_JOB_ID
+    cmd_wait_output "success|error" cray ims jobs describe $IMS_JOB_ID
 
     IMAGE_ID=$(cray ims jobs describe $IMS_JOB_ID | grep 'resultant_image_id' | awk '{print $3}' | sed 's/"//g' )
     echo "  Grabbing image_id = '$IMAGE_ID' from output..."
 
-    verbose_cmd cray ims images describe $IMAGE_ID
+    verbose_cmd cray ims images describe "$IMAGE_ID" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
-        echo "[$GROUP_NAME] Error Image does not exist!" 1>&2
+        echo "[$GROUP_NAME] Error image build failed! See logs for details" 1>&2
         exit 2
     fi
     echo "  Ok, image does appear to exist. Cleaning up the job..."
 
     verbose_cmd cray ims jobs delete $IMS_JOB_ID
 
-    echo "[$GROUP_NAME] Bare Image Created: $IMAGE_ID" 1>&2
+    echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID" 1>&2
     RETURN="$IMAGE_ID"
     return 0
 }
@@ -214,8 +259,8 @@ function image_configure {
     local GROUP_NAME=$2
     local CONFIG_NAME=$3
 
-    local GROUP_LOWER=$(echo "$GROUP_NAME" | awk '{print tolower($0)}')
-    SESSION_NAME="$GROUP_LOWER"`date +%M`
+    local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
+    SESSION_NAME="$GROUP_SANITIZED"`date +%M`
 
     if [[ -z "$IMAGE_ID" || -z "$GROUP_NAME" || -z "$CONFIG_NAME" ]]; then
         echo "usage $0 image config [image id] [group name] [config name]"
@@ -234,8 +279,12 @@ function image_configure {
         --name "$SESSION_NAME" \
         --configuration-name "$CONFIG_NAME" \
         --target-definition image \
-        --target-group "$GROUP_NAME" "$IMAGE_ID"
+        --target-group "$GROUP_NAME" "$IMAGE_ID" 2>&1
  
+    if [[ $? -ne 0 ]]; then
+        echo "[$GROUP_NAME] cfs session creation failed! See logs for details" 1>&2
+        exit 2
+    fi
 
     cmd_wait_output "job =" cray cfs sessions describe "$SESSION_NAME"
 
@@ -247,7 +296,7 @@ function image_configure {
     cmd_wait kubectl logs -n services "$POD_ID" -c "ansible-0"
 
     for cont in inventory ansible-0 ansible-1 ansible-2 ansible-3 ansible-4 ansible-5; do
-        kubectl logs -n services -f "$POD_ID" -c $cont
+        kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
     done
 
     cmd_wait_output 'complete' cray cfs sessions describe "$SESSION_NAME"
@@ -266,7 +315,7 @@ function image_configure {
     fi
     verbose_cmd cray ims images describe "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
-        echo "[$GROUP_NAME] Error Image does not exist!" 1>&2
+        echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details" 1>&2
         exit 2
     fi
 

@@ -1,4 +1,5 @@
 
+BOS_CONFIG_DIR="/root/templates/"
 function bos {
     case $1 in
         clo*)
@@ -21,6 +22,10 @@ function bos {
             shift
             bos_list "$@"
             ;;
+        reboot)
+            shift
+            bos_reboot "$@"
+            ;;
         sh*)
             shift
             bos_describe "$@"
@@ -39,13 +44,14 @@ function bos_help {
     echo -e "\tedit [template] : edit a bos session template"
     echo -e "\tdescribe [template] : (same as show)"
     echo -e "\tlist : show all bos session templates"
+    echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
  
     exit 1
 }
 
 function bos_list {
-    refresh_cluster_groups
+    cluster_defaults_config
     echo "NAME(Nodes applied to at boot)"
     BOS_LINES=( $(cray bos sessiontemplate list --format json | jq '.[].name' | sed 's/"//g') )
     
@@ -90,6 +96,11 @@ function bos_clone {
     local SRC="$1"
     local DEST="$2"
     local TEMPFILE
+
+    if [[ -z "$SRC" || -z "$DEST" ]]; then
+        echo "USAGE: $0 bos clone [src bos template] [dest bos template]" 1>&2
+        exit 2
+    fi
     bos_exit_if_not_valid "$SRC"
     bos_exit_if_exists "$DEST"
 
@@ -102,28 +113,56 @@ function bos_clone {
     cray bos sessiontemplate create --name $DEST --file "$TMPFILE" --format json
 }
 
+function bos_update_template {
+    local TEMPLATE="$1"
+    local KEY="$2"
+    local VALUE="$3"
+
+    set -e
+    cray bos sessiontemplate describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    json_set_field "$BOS_CONFIG_DIR/$TEMPLATE.json" "$KEY" "$VALUE"
+    cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" --format json > /dev/null 2>&1
+    set +e
+    return $?
+}
+
 function bos_edit {
     local CONFIG="$1"
 
+    if [[ -z "$CONFIG" ]]; then
+        echo "USAGE: $0 bos edit [bos template]" 1>&2
+        exit 2
+    fi
     bos_exit_if_not_valid "$CONFIG"
 
     set -e
-    local CONFIG_DIR="/root/templates/"
-    cray bos sessiontemplate describe $CONFIG --format json > "$CONFIG_DIR/$CONFIG.json" 
+    cray bos sessiontemplate describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json" 
 
-    if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
+    if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         echo "Error! Config '$CONFIG' does not exist!"
-        rm -f "$CONFIG_DIR/$CONFIG.json"
+        rm -f "$BOS_CONFIG_DIR/$CONFIG.json"
         exit 2
     fi
 
     set +e
-    edit_file "$CONFIG_DIR/$CONFIG.json"
+    edit_file "$BOS_CONFIG_DIR/$CONFIG.json"
     if [[ "$?" == 0 ]]; then
         echo -n "Updating '$CONFIG' with new data..."
-        verbose_cmd cray bos sessiontemplate create --name $CONFIG --file "$CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
+        verbose_cmd cray bos sessiontemplate create --name $CONFIG --file "$BOS_CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
         echo 'done'
     else
         echo "No modifications made. Not pushing changes up"
     fi
+}
+
+function bos_reboot {
+    local TEMPLATE="$1"
+    local TARGET="$2"
+
+    if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
+        echo "USAGE: $0 bos reboot [template] [target nodes or groups]" 1>&2
+        exit 2
+    fi
+    bos_exit_if_not_valid "$CONFIG"
+    cray bos session create --operation reboot --template-uuid "$TEMPLATE" --limit "$TARGET"
 }

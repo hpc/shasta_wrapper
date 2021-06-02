@@ -13,6 +13,10 @@ function cluster {
             shift
             cluster_group "$@"
             ;;
+        inf*)
+            shift
+            cluster_group_all "$@"
+            ;;
         reboot_group)
             shift
             cluster_reboot_group "$@"
@@ -37,6 +41,7 @@ function cluster_help {
     echo    "ACTIONS:"
     echo -e "\tgroup : cluster node group information"
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
+    echo -e "\tinfo : cluster node group information"
     echo -e "\treboot_group [group] : Reboots the given group into it's default bos template."
     echo -e "\treboot_nodes [group] [nodes] : Reboots the given nodes in a specific group into the group's default bos template."
     echo -e "\tvalidate : Check that current defaults and their bos configurations actually point to things that exist."
@@ -48,7 +53,6 @@ function cluster_group {
     case $1 in
         al*)
             shift
-            cluster_group_all "$@"
             ;;
         li*)
             shift
@@ -166,6 +170,9 @@ function cluster_defaults_config {
         fi
         CUR_IMAGE_NAME[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.name)\"" | sed 's/"//g')
         CUR_IMAGE_ID[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.id)\"" | sed 's/"//g')
+    done
+    for group in "${!CONFIG_DEFAULT[@]}"; do
+        CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
     done
 }
 

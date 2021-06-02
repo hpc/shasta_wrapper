@@ -1,7 +1,8 @@
 TMPDIR=""
 
-COLOR_RED='\033[0;31m'
-COLOR_RESET='\033[0m'
+COLOR_RED=$(echo '\033[0;31m')
+COLOR_BOLD=$(tput bold)
+COLOR_RESET=$(tput sgr0)
 
 function die {
     echo -e "${COLOR_RED}$@${COLOR_RESET}" 1>&2

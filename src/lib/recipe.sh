@@ -56,10 +56,16 @@ function refresh_recipes {
 
 function recipe_list {
     refresh_recipes
-    echo "CREATED                            ID                                     NAME"
+    cluster_defaults_config
+    echo "CREATED                            ID                                     NAME(default for group)"
     for id in "${!RECIPE_ID2NAME[@]}"; do
         name="${RECIPE_ID2NAME[$id]}"
         created="${RECIPE_ID2CREATED[$id]}"
+        for group in "${!RECIPE_DEFAULT[@]}"; do
+            if [[ "${RECIPE_DEFAULT[$group]}" == "$id" ]]; then
+                name="$name$COLOR_BOLD($group)$COLOR_RESET"
+            fi
+        done
         echo "$created   $id   $name"
     done | sort
 }

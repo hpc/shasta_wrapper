@@ -61,7 +61,7 @@ function bos_list {
         echo -n "$line"
         for group in "${!BOS_DEFAULT[@]}"; do
             if [[ "${BOS_DEFAULT[$group]}" == "$line" ]]; then
-                 echo -n "($group)"
+                 echo -n "$COLOR_BOLD($group)$COLOR_RESET"
             fi
         done
         echo

@@ -71,11 +71,17 @@ function refresh_images {
 }
 
 function image_list {
+    cluster_defaults_config
     refresh_images
-    echo "CREATED                            ID                                     NAME"
+    echo "CREATED                            ID                                     NAME(Mapped image for)"
     for id in "${!IMAGE_ID2NAME[@]}"; do
         name="${IMAGE_ID2NAME[$id]}"
         created="${IMAGE_ID2CREATED[$id]}"
+        for group in "${!CUR_IMAGE_ID[@]}"; do
+            if [[ "${CUR_IMAGE_ID[$group]}" == "$id" ]]; then
+                name="$name$COLOR_BOLD($group)$COLOR_RESET"
+            fi
+        done
         echo "$created   $id   $name"
     done | sort
 }
@@ -337,3 +343,4 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images "$artifact"
     done
 }
+

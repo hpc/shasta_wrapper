@@ -54,7 +54,19 @@ function config_help {
 
 
 function config_list {
-    cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'
+    local CONFIG CONFIGS
+    cluster_defaults_config
+    echo "NAME(default config for)"
+    CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
+    for CONFIG in "${CONFIGS[@]}"; do
+        echo -n "$CONFIG"
+        for group in "${!CUR_IMAGE_CONFIG[@]}"; do
+            if [[ "${CUR_IMAGE_CONFIG[$group]}" == "$CONFIG" ]]; then
+                echo -n "$COLOR_BOLD($group)$COLOR_RESET"
+            fi
+        done
+        echo
+    done
 }
 
 function config_describe {

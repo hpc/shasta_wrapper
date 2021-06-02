@@ -1,5 +1,13 @@
 TMPDIR=""
 
+COLOR_RED='\033[0;31m'
+COLOR_RESET='\033[0m'
+
+function die {
+    echo -e "${COLOR_RED}$@${COLOR_RESET}" 1>&2
+    exit 2
+}
+
 function tmpdir {
     if [[ -z "$TMPDIR" ]]; then
         TMPDIR=$(mktemp -d)
@@ -85,7 +93,9 @@ function json_set_field {
     FIELD="$2"
     VALUE="$3"
 
-    jq "$FIELD = \"$VALUE\"" "$FILE" > "$FILE.tmp"
+    jq "$FIELD = \"$VALUE\"" "$FILE" > "$FILE.tmp" || return 1
     mv "$FILE.tmp" "$FILE"
+    cat $FILE | jq "$FIELD" > /dev/null || return 1
+    return 0
 }
 

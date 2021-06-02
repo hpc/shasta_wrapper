@@ -1,5 +1,7 @@
 
 BOS_CONFIG_DIR="/root/templates/"
+BOOT_LOGS="/var/log/boot/"`date '+%Y%m%d-%H%M%S'`
+
 function bos {
     case $1 in
         clo*)
@@ -79,8 +81,7 @@ function bos_delete {
 function bos_exit_if_not_valid {
     cray bos sessiontemplate describe "$1" > /dev/null 2>&1
     if [[ $! -ne 0 ]]; then
-        echo "Error! $SRC is not a valid bos sessiontemplate."
-        exit 2
+        die "Error! $SRC is not a valid bos sessiontemplate."
     fi
 }
 
@@ -99,7 +100,7 @@ function bos_clone {
 
     if [[ -z "$SRC" || -z "$DEST" ]]; then
         echo "USAGE: $0 bos clone [src bos template] [dest bos template]" 1>&2
-        exit 2
+        exit 1
     fi
     bos_exit_if_not_valid "$SRC"
     bos_exit_if_exists "$DEST"
@@ -122,6 +123,8 @@ function bos_update_template {
     cray bos sessiontemplate describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     json_set_field "$BOS_CONFIG_DIR/$TEMPLATE.json" "$KEY" "$VALUE"
     cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" --format json > /dev/null 2>&1
+    cray bos sessiontemplate describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    cat "$BOS_CONFIG_DIR/$TEMPLATE.json" | jq "$KEY" > /dev/null
     set +e
     return $?
 }
@@ -131,7 +134,7 @@ function bos_edit {
 
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 bos edit [bos template]" 1>&2
-        exit 2
+        exit 1
     fi
     bos_exit_if_not_valid "$CONFIG"
 
@@ -139,9 +142,8 @@ function bos_edit {
     cray bos sessiontemplate describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json"
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
-        echo "Error! Config '$CONFIG' does not exist!"
         rm -f "$BOS_CONFIG_DIR/$CONFIG.json"
-        exit 2
+        die "Error! Config '$CONFIG' does not exist!"
     fi
 
     set +e
@@ -159,10 +161,39 @@ function bos_reboot {
     local TEMPLATE="$1"
     local TARGET="$2"
 
+    local KUBE_JOB_ID
+
+    cluster_defaults_config
+    SPLIT=( $(echo $TARGET | sed 's/,/ /g') )
+    for node in "${SPLIT[@]}"; do
+        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
+        cray cfs components update --enabled true "$node" > /dev/null 2>&1
+    done
+
     if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
         echo "USAGE: $0 bos reboot [template] [target nodes or groups]" 1>&2
-        exit 2
+        exit 1
     fi
     bos_exit_if_not_valid "$CONFIG"
-    cray bos session create --operation reboot --template-uuid "$TEMPLATE" --limit "$TARGET"
+    KUBE_JOB_ID=$(cray bos session create --operation reboot --template-uuid "$TEMPLATE" --limit "$TARGET"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
+    if [[ -z "$KUBE_JOB_ID" ]]; then
+        die "Failed to create bos session"
+    fi
+    BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
+
+    cmd_wait_output "Created pod:" kubectl describe job -n services "$KUBE_JOB_ID"
+
+    POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
+
+    cd /tmp
+    mkdir -p "$BOOT_LOGS"
+    echo "reboot action initiated. details:"
+    echo "BOS Session: $BOS_SESSION"
+    echo "kubernetes pod: $POD"
+    echo
+    echo "Starting Boot..."
+    echo "Boot Logs: '$BOOT_LOGS/reboot-$TARGET.log'"
+    cmd_wait kubectl logs -n services "$POD" -c boa
+    kubectl logs -n services "$POD" -c boa -f > "$BOOT_LOGS/reboot-$TARGET.log" 2>&1
+    echo
 }

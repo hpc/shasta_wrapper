@@ -69,8 +69,7 @@ function config_exit_if_not_valid {
     set +e
     cray cfs configurations describe "$1" > /dev/null 2> /dev/null
     if [[ $? -ne 0 ]]; then
-        echo "Error! $SRC is not a valid configuration."
-        exit 2
+        die "Error! $SRC is not a valid configuration."
     fi
 }
 
@@ -90,7 +89,7 @@ function config_clone {
 
     if [[ -z "$SRC" || -z "$DEST" ]]; then
         echo "USAGE: $0 config clone [src config] [dest config]" 1>&2
-        exit 2
+        exit 1
     fi
     config_exit_if_not_valid "$SRC"
     config_exit_if_exists "$DEST"
@@ -108,7 +107,7 @@ function config_edit {
     local CONFIG="$1"
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 config edit [config]" 1>&2
-        exit 2
+        exit 1
     fi
 
     config_exit_if_not_valid "$CONFIG"
@@ -118,9 +117,8 @@ function config_edit {
     cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
     if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
-        echo "Error! Config '$CONFIG' does not exist!"
-        #rm -f "$CONFIG_DIR/$CONFIG.json"
-        exit 2
+        rm -f "$CONFIG_DIR/$CONFIG.json"
+        die "Error! Config '$CONFIG' does not exist!"
     fi
 
 
@@ -139,19 +137,20 @@ function config_edit {
 function config_apply {
 
     local CONFIG=$1
+    local NODES=$2
     shift
     local NAME=cfs`date +%s`
     local JOB POD TRIED MAX_TRIES RET
 
     if [[ -z "$CONFIG" ]]; then
-        echo "usage: $0 config apply <configuration name> <cray cfs sessions create args>"
+        echo "usage: $0 config apply [configuration name] [nodes|groups]"
         echo "cray cfs sessions create args(note --name and --configuration-name are defined for you):"
         cray cfs sessions create --help
         exit 1
     fi
 
 
-    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG "$@"
+    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES"
     sleep 1
     JOB=$(cray cfs sessions describe "$NAME" | grep job | awk '{print $3}' | sed 's/"//g')
     POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
@@ -177,7 +176,7 @@ function config_apply {
     set -e
     set -x
 
-
+    # kubectl get pods cfs-f2df4111-fbe4-4bc5-8c65-70f5f5e03c80-xxrg2 -n services -o json | jq '.metadata.managedFields' | jq '.[].fieldsV1."f:spec"."f:containers"' | jq 'keys' | less
     kubectl logs -n services $POD inventory -f
     kubectl logs -n services $POD ansible-0 -f
     kubectl logs -n services $POD ansible-1 -f

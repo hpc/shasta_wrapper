@@ -87,8 +87,7 @@ function cluster_build_images {
     echo "## Launching Image Build(s)"
     if [[ -n "$GROUP" ]]; then
         if [[ -z "${RECIPE_DEFAULT[$GROUP]}" ]]; then
-            echo "Group '$GROUP' is not valid." 1>&2
-            exit 2
+            die "Group '$GROUP' is not valid."
         fi
         if [[ "$MAP" -eq "0" ]]; then
             MAP_TARGET="${BOS_DEFAULT[$GROUP]}"
@@ -155,8 +154,7 @@ function cluster_defaults_config {
         BOS_RAW=$(echo "$ALL_BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
 
         if [[ -z "$BOS_RAW" ]]; then
-            echo "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
-            exit 2
+            die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
         fi
 
         CUR_IMAGE_CONFIG[$group]=$(echo "$BOS_RAW" | jq '.cfs.configuration' | sed 's/"//g')
@@ -164,8 +162,7 @@ function cluster_defaults_config {
 
         IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
         if [[ -z "$IMAGE_RAW" ]]; then
-            echo "Error. Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
-            exit 2
+            die "Error. Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
         fi
         CUR_IMAGE_NAME[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.name)\"" | sed 's/"//g')
         CUR_IMAGE_ID[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.id)\"" | sed 's/"//g')
@@ -184,15 +181,13 @@ function cluster_validate {
         RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"${RECIPE_DEFAULT[$group]}\")")
         if [[ -z "$RECIPE" ]]; then
             echo
-            echo "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
-            exit 2
+            die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
         fi
         # Validate configuration used exists
         CONFIG=$(echo "$CONFIG_RAW" | jq ".[] | select(.name == \"${CUR_IMAGE_CONFIG[$group]}\")")
         if [[ -z "$CONFIG" ]]; then
             echo
-            echo "Error config '${CUR_IMAGE_CONFIG[$group]}' set in bos sessiontemplate '${BOS_DEFAULT[$group]}' is not a valid configuration. check bos configuration."
-            exit 2
+            die "Error config '${CUR_IMAGE_CONFIG[$group]}' set in bos sessiontemplate '${BOS_DEFAULT[$group]}' is not a valid configuration. check bos configuration."
         fi
         echo "ok"
     done
@@ -236,8 +231,7 @@ function cluster_group_describe {
          echo "config:              ${CONFIG_DEFAULT[$GROUP]}"
 
     else
-        echo "'$GROUP' is not a valid group."
-        exit 2
+        die "'$GROUP' is not a valid group."
     fi
 
 }
@@ -246,14 +240,13 @@ function cluster_reboot_group {
     GROUP="$1"
     if [[ -z "$GROUP" ]]; then
         echo "USAGE: $0 cluster reboot_group [group]" 1>&2
-        exit 2
+        exit 1
     fi
     cluster_defaults_config
 
 
     if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
-        echo "Group '$GROUP' is not a valid group" 1>&2
-        exit 2
+        die "Group '$GROUP' is not a valid group" 1>&2
     fi
     bos_reboot "${BOS_DEFAULT[$GROUP]}" "$GROUP"
 }
@@ -263,15 +256,13 @@ function cluster_reboot_nodes {
     local GROUP="$1"
     local NODES="$2"
     if [[ -z "$GROUP" ]]; then
-        echo "USAGE: $0 cluster reboot_group [group] [nodes]" 1>&2
-        exit 2
+        die "USAGE: $0 cluster reboot_group [group] [nodes]" 1>&2
     fi
     cluster_defaults_config
 
 
     if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
-        echo "Group '$GROUP' is not a valid group" 1>&2
-        exit 2
+        die "Group '$GROUP' is not a valid group" 1>&2
     fi
     bos_reboot "${BOS_DEFAULT[$GROUP]}" "$NODES"
 }

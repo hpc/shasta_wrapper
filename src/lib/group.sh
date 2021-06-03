@@ -51,7 +51,7 @@ function group_help {
     echo -e "\tlist : list all available node groups"
     echo -e "\treboot [group] : Reboots the given group into it's default bos template."
     echo -e "\tshow : show details on a specific node group"
-    echo -e "\tsummary : show all groups and their general configs"
+    echo -e "\tsummary <-v> : show all groups and their general configs"
     echo -e "\tshutdown [group] : shutdown all nodes in the group"
 
     exit 1

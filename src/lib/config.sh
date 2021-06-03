@@ -2,7 +2,7 @@
 
 
 function config {
-    case $1 in
+    case "$1" in
         ap*)
             shift
             config_apply "$@"
@@ -54,7 +54,7 @@ function config_help {
 
 
 function config_list {
-    local CONFIG CONFIGS
+    local CONFIG CONFIGS group
     cluster_defaults_config
     echo "NAME(default config for)"
     CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
@@ -117,6 +117,7 @@ function config_clone {
 
 function config_edit {
     local CONFIG="$1"
+    local CONFIG_DIR
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 config edit [config]" 1>&2
         exit 1

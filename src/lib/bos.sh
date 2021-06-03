@@ -3,7 +3,7 @@ BOS_CONFIG_DIR="/root/templates/"
 BOOT_LOGS="/var/log/boot/"`date '+%Y%m%d-%H%M%S'`
 
 function bos {
-    case $1 in
+    case "$1" in
         clo*)
             shift
             bos_clone "$@"
@@ -53,6 +53,7 @@ function bos_help {
 }
 
 function bos_list {
+    local BOS_LINES line group
     cluster_defaults_config
     echo "NAME(Nodes applied to at boot)"
     BOS_LINES=( $(cray bos sessiontemplate list --format json | jq '.[].name' | sed 's/"//g') )
@@ -161,7 +162,7 @@ function bos_reboot {
     local TEMPLATE="$1"
     local TARGET="$2"
 
-    local KUBE_JOB_ID
+    local KUBE_JOB_ID SPLIT BOS_SESSION POD
 
     cluster_defaults_config
     SPLIT=( $(echo $TARGET | sed 's/,/ /g') )

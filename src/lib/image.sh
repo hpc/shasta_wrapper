@@ -5,7 +5,7 @@ declare -A IMAGE_ID2CREATED
 IMAGE_LOGDIR="/var/log/image/"`date '+%Y%m%d-%H%M%S'`
 
 function image {
-    case $1 in
+    case "$1" in
         bu*)
             shift
             image_build "$@"
@@ -71,6 +71,7 @@ function refresh_images {
 }
 
 function image_list {
+    local id name created group
     cluster_defaults_config
     refresh_images
     echo "CREATED                            ID                                     NAME(Mapped image for)"
@@ -108,6 +109,7 @@ function image_build {
     local CONFIG_NAME=$3
     local NEW_IMAGE_NAME="$4"
     local BOS_TEMPLATE="$5"
+    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID
 
 
     if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
@@ -186,6 +188,7 @@ function image_build_bare {
     local RECIPE_ID=$1
     local NEW_IMAGE_NAME=$2
     local GROUP_NAME=$3
+    local JOB_RAW JOB_ID IMS_JOB_ID POD IMAGE_ID
 
     if [[ -z "$RECIPE_ID" ]]; then
         echo "[$GROUP_NAME] Error. recipe id must be provided!"
@@ -267,6 +270,7 @@ function image_configure {
     local IMAGE_ID=$1
     local GROUP_NAME=$2
     local CONFIG_NAME=$3
+    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID
 
     local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
     SESSION_NAME="$GROUP_SANITIZED"`date +%M`

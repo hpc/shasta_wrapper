@@ -3,7 +3,7 @@ declare -A RECIPE_ID2NAME
 declare -A RECIPE_ID2CREATED
 
 function recipe {
-    case $1 in
+    case "$1" in
         cl*)
             shift
             recipe_clone "$@"
@@ -38,7 +38,7 @@ function recipe_help {
 }
 
 function refresh_recipes {
-    local RAW SPLIT
+    local RAW SPLIT id created name
 
     IFS=$'\n'
     RAW=( $(cray ims recipes list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )

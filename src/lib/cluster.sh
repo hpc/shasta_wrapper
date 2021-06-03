@@ -4,7 +4,7 @@ CLUSTER_GROUPS=( )
 
 
 function cluster {
-    case $1 in
+    case "$1" in
         build_images)
             shift
             cluster_build_images "$@"
@@ -50,7 +50,7 @@ function cluster_help {
 }
 
 function cluster_group {
-    case $1 in
+    case "$1" in
         al*)
             shift
             ;;
@@ -80,6 +80,7 @@ function cluster_build_images {
         shift
     fi
     local GROUP="$1"
+    local MAP_TARGET
 
     echo "## Validating current setup before trying to build anything... (Should take a few seconds)"
     cluster_defaults_config
@@ -138,6 +139,7 @@ function cluster_group_help {
 }
 
 function cluster_group_list {
+    local group
     cluster_defaults_config
     for group in "${!CONFIG_DEFAULT[@]}"; do
         echo $group
@@ -177,6 +179,7 @@ function cluster_defaults_config {
 }
 
 function cluster_validate {
+    local group RECIPE CONFIG
     cluster_defaults_config
 
     local CONFIG_RAW CONFIG RECIPE_RAW RECIPE
@@ -201,6 +204,7 @@ function cluster_validate {
 }
 
 function cluster_group_all {
+    local group
     cluster_defaults_config
 
     for group in "${!CONFIG_DEFAULT[@]}"; do
@@ -215,6 +219,7 @@ function cluster_group_all {
 
 function cluster_group_describe {
     local GROUP=$1
+    local CONFIG IMAGE_ETAG IMAGE_NAME IMAGE_ID
     cluster_defaults_config
 
     local CONFIG IMAGE_ETAG BOS_RAW IMAGE
@@ -244,7 +249,7 @@ function cluster_group_describe {
 }
 
 function cluster_reboot_group {
-    GROUP="$1"
+    local GROUP="$1"
     if [[ -z "$GROUP" ]]; then
         echo "USAGE: $0 cluster reboot_group [group]" 1>&2
         exit 1

@@ -13,6 +13,7 @@ function tmpdir {
     if [[ -z "$TMPDIR" ]]; then
         TMPDIR=$(mktemp -d)
     fi
+    RETURN="$TMPDIR"
 }
 
 function prompt {
@@ -35,7 +36,7 @@ function prompt {
 }
 
 function cmd_wait {
-    RET=1
+    local RET=1
     set +e
     echo "Waiting for zero return code on '$@'"
     while [[ $RET -ne 0 ]]; do
@@ -90,13 +91,12 @@ function edit_file {
 }
 
 function json_set_field {
-    FILE="$1"
-    FIELD="$2"
-    VALUE="$3"
+    local FILE="$1"
+    local FIELD="$2"
+    local VALUE="$3"
 
     jq "$FIELD = \"$VALUE\"" "$FILE" > "$FILE.tmp" || return 1
     mv "$FILE.tmp" "$FILE"
     cat $FILE | jq "$FIELD" > /dev/null || return 1
     return 0
 }
-

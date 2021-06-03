@@ -8,6 +8,10 @@ done
 function main {
     export IMS_PUBLIC_KEY_ID=f25c56cb-fb05-498c-9427-582e0098fb9f
     case $1 in
+        bo*)
+            shift
+            bos "$@"
+            ;;
         co*)
             shift
             config "$@"
@@ -16,17 +20,21 @@ function main {
             shift
             cluster "$@"
             ;;
-        bo*)
+        gr*)
             shift
-            bos "$@"
-            ;;
-        re*)
-            shift
-            recipe "$@"
+            group "$@"
             ;;
         im*)
             shift
             image "$@"
+            ;;
+        no*)
+            shift
+            node "$@"
+            ;;
+        re*)
+            shift
+            recipe "$@"
             ;;
         ve*)
             shift
@@ -42,11 +50,13 @@ function help_shasta {
   echo "USAGE: $0 [action]"
   echo "DESC: Intended to provide a more straitforward interface to the cray shasta environment. You can get more functionality via the direct 'cray' commands. However, they are very cumbersome to use"
   echo "ACTIONS:"
-  echo "  config : ansible configuration options"
-  echo "  cluster : see cluster information"
   echo "  bos : boot settings (session templates)"
-  echo "  recipe : recipes for building images"
+  echo "  cluster : see cluster information"
+  echo "  config : ansible configuration options"
+  echo "  group : group info and actions"
   echo "  image : image controls"
+  echo "  node : node info and actions"
+  echo "  recipe : recipes for building images"
   echo "  version : print software version"
 }
 

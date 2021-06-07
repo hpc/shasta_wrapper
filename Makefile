@@ -2,7 +2,7 @@ NAME			= shasta_wrapper
 CONFDIR			= /etc
 LIBDIR			= /usr/share/shasta_wrapper/lib
 SBINDIR			= /usr/sbin
-VERSION			= 0.4.0
+VERSION			= 0.5.0
 RELEASE			= 0.1
 
 SOURCE			= src

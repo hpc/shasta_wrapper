@@ -1,6 +1,6 @@
 
 BOS_CONFIG_DIR="/root/templates/"
-BOOT_LOGS="/var/log/boot/"`date '+%Y%m%d-%H%M%S'`
+BOOT_LOGS="/var/log/boot/"`date +%y-%m-%dT%H-%M-%S`
 
 function bos {
     case "$1" in
@@ -26,7 +26,7 @@ function bos {
             ;;
         reboot)
             shift
-            bos_reboot "$@"
+            bos_boot reboot "$@"
             ;;
         sh*)
             shift
@@ -158,11 +158,12 @@ function bos_edit {
     fi
 }
 
-function bos_reboot {
-    local TEMPLATE="$1"
-    local TARGET="$2"
+function bos_boot {
+    local ACTION="$1"
+    local TEMPLATE="$2"
+    local TARGET="$3"
 
-    local KUBE_JOB_ID SPLIT BOS_SESSION POD
+    local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE
 
     cluster_defaults_config
     SPLIT=( $(echo $TARGET | sed 's/,/ /g') )
@@ -176,7 +177,7 @@ function bos_reboot {
         exit 1
     fi
     bos_exit_if_not_valid "$CONFIG"
-    KUBE_JOB_ID=$(cray bos session create --operation reboot --template-uuid "$TEMPLATE" --limit "$TARGET"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
+    KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to create bos session"
     fi
@@ -186,15 +187,22 @@ function bos_reboot {
 
     POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
 
+    # if booting more than one node,
+    if [[ "${#TARGET}" -ge 20 ]]; then
+        LOGFILE="$BOOT_LOGS/$ACTION-$TEMPLATE.log"
+    else
+        LOGFILE="$BOOT_LOGS/$ACTION-$TARGET.log"
+    fi
+
     cd /tmp
     mkdir -p "$BOOT_LOGS"
-    echo "reboot action initiated. details:"
+    cmd_wait kubectl logs -n services "$POD" -c boa
+    nohup kubectl logs -n services "$POD" -c boa -f > "$LOGFILE" 2>&1 &
+    echo "$ACTION action initiated. details:"
     echo "BOS Session: $BOS_SESSION"
     echo "kubernetes pod: $POD"
     echo
-    echo "Starting Boot..."
-    echo "Boot Logs: '$BOOT_LOGS/reboot-$TARGET.log'"
-    cmd_wait kubectl logs -n services "$POD" -c boa
-    kubectl logs -n services "$POD" -c boa -f > "$BOOT_LOGS/reboot-$TARGET.log" 2>&1
+    echo "Starting $ACTION..."
+    echo "Boot Logs: '$LOGFILE'"
     echo
 }

@@ -86,6 +86,7 @@ function group_boot {
 
 function refresh_ansible_groups {
     local ANSIBLE_LINES LINE SPLIT GROUP
+    cluster_defaults_config
 
     if [[ -n "${!NODE2GROUP[@]}" ]]; then
         return
@@ -97,10 +98,12 @@ function refresh_ansible_groups {
 
     GROUP=""
     for LINE in "${ANSIBLE_LINES[@]}"; do
-        if [[ ${LINE: -1:1} == ':' ]]; then
+        if [[ ${LINE: -1:1} == ':' && CUR_IMAGE_CONFIG[$${LINE:0:${#LINE}-1] ]]; then
             GROUP="${LINE:0:${#LINE}-1}"
         else
-            NODE2GROUP[$LINE]=$GROUP
+            if [[ -z "${NODE2GROUP[$LINE]}" || -n "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
+                NODE2GROUP[$LINE]=$GROUP
+            fi
             GROUP2NODES[$GROUP]+="$LINE "
         fi
     done

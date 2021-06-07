@@ -1,62 +1,62 @@
 #!/bin/bash
 
 
-function config {
+function cfs {
     case "$1" in
         ap*)
             shift
-            config_apply "$@"
+            cfs_apply "$@"
             ;;
         cl*)
             shift
-            config_clone "$@"
+            cfs_clone "$@"
             ;;
         des*)
             shift
-            config_describe "$@"
+            cfs_describe "$@"
             ;;
         ed*)
             shift
-            config_edit "$@"
+            cfs_edit "$@"
             ;;
         delete)
             shift
-            config_delete "$@"
+            cfs_delete "$@"
             ;;
         li*)
             shift
-            config_list "$@"
+            cfs_list "$@"
             ;;
         sh*)
             shift
-            config_describe "$@"
+            cfs_describe "$@"
             ;;
         *)
-            config_help
+            cfs_help
             ;;
     esac
 }
 
-function config_help {
-    echo    "USAGE: $0 config [action]"
-    echo    "DESC: Each config is s declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A config is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
+function cfs_help {
+    echo    "USAGE: $0 cfs [action]"
+    echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
-    echo -e "\tapply [config] [other options] : Runs the given config against it's confgured nodes"
-    echo -e "\tclone [src] [dest] : Clone an existing config"
-    echo -e "\tedit [config] : Edit a given config."
-    echo -e "\tdelete [config] : delete the config"
-    echo -e "\tdescribe [config] : (same as show)"
+    echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
+    echo -e "\tclone [src] [dest] : Clone an existing cfs"
+    echo -e "\tedit [cfs] : Edit a given cfs."
+    echo -e "\tdelete [cfs] : delete the cfs"
+    echo -e "\tdescribe [cfs] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
-    echo -e "\tshow [config] : shows all info on a given config"
+    echo -e "\tshow [cfs] : shows all info on a given cfs"
 
     exit 1
 }
 
 
-function config_list {
+function cfs_list {
     local CONFIG CONFIGS group
     cluster_defaults_config
-    echo "NAME(default config for)"
+    echo "NAME(default cfs for)"
     CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
     for CONFIG in "${CONFIGS[@]}"; do
         echo -n "$CONFIG"
@@ -69,15 +69,15 @@ function config_list {
     done
 }
 
-function config_describe {
+function cfs_describe {
     cray cfs configurations describe "$1"
 }
 
-function config_delete {
+function cfs_delete {
     cray cfs configurations delete "$1"
 }
 
-function config_exit_if_not_valid {
+function cfs_exit_if_not_valid {
     set +e
     cray cfs configurations describe "$1" > /dev/null 2> /dev/null
     if [[ $? -ne 0 ]]; then
@@ -85,7 +85,7 @@ function config_exit_if_not_valid {
     fi
 }
 
-function config_exit_if_exists {
+function cfs_exit_if_exists {
     set +e
     cray cfs configurations describe "$1" > /dev/null 2>&1
     if [[ $? -eq 0 ]]; then
@@ -94,17 +94,17 @@ function config_exit_if_exists {
     fi
 }
 
-function config_clone {
+function cfs_clone {
     local SRC="$1"
     local DEST="$2"
     local TEMPFILE
 
     if [[ -z "$SRC" || -z "$DEST" ]]; then
-        echo "USAGE: $0 config clone [src config] [dest config]" 1>&2
+        echo "USAGE: $0 cfs clone [src cfs] [dest cfs]" 1>&2
         exit 1
     fi
-    config_exit_if_not_valid "$SRC"
-    config_exit_if_exists "$DEST"
+    cfs_exit_if_not_valid "$SRC"
+    cfs_exit_if_exists "$DEST"
 
     set -e
     tmpdir
@@ -115,15 +115,15 @@ function config_clone {
     cray cfs configurations update $DEST --file "$TMPFILE" --format json > /dev/null 2>&1
 }
 
-function config_edit {
+function cfs_edit {
     local CONFIG="$1"
     local CONFIG_DIR
     if [[ -z "$CONFIG" ]]; then
-        echo "USAGE: $0 config edit [config]" 1>&2
+        echo "USAGE: $0 cfs edit [cfs]" 1>&2
         exit 1
     fi
 
-    config_exit_if_not_valid "$CONFIG"
+    cfs_exit_if_not_valid "$CONFIG"
     set -e
 
     local CONFIG_DIR="/root/templates/cfs_configurations/"
@@ -147,7 +147,7 @@ function config_edit {
     fi
 }
 
-function config_apply {
+function cfs_apply {
 
     local CONFIG=$1
     local NODES=$2
@@ -156,8 +156,8 @@ function config_apply {
     local JOB POD TRIED MAX_TRIES RET
 
     if [[ -z "$CONFIG" ]]; then
-        echo "usage: $0 config apply [configuration name] [nodes|groups]"
-        echo "cray cfs sessions create args(note --name and --configuration-name are defined for you):"
+        echo "usage: $0 cfs apply [configuration name] [nodes|groups]"
+        echo "cray cfs sessions create args(note --name and --cfsuration-name are defined for you):"
         cray cfs sessions create --help
         exit 1
     fi
@@ -172,7 +172,7 @@ function config_apply {
     set +x
 
     echo "Waiting for ansible worker pod to launch..."
-    MAX_TRIES=20
+    MAX_TRIES=30
     TRIED=0
     RET=1
     while [[ $RET -ne 0 ]]; do
@@ -180,7 +180,7 @@ function config_apply {
         kubectl logs -n services $POD inventory -f > /dev/null 2>&1
         RET=$?
         if [[ $TRIED -ge $MAX_TRIES ]]; then
-            echo "Failed to get logging data for 'kubectl logs -n services $POD'"
+            echo "Failed to get logging data for 'kubectl logs -n services $POD inventory'"
             exit 1
         fi
         TRIED=$(( $TRIED + 1 ))
@@ -197,4 +197,5 @@ function config_apply {
     kubectl logs -n services $POD ansible-3 -f
     kubectl logs -n services $POD ansible-4 -f
 
+    cray cfs sessions delete "$NAME"
 }

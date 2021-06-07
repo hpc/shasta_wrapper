@@ -5,6 +5,10 @@ function node {
             shift
             node_boot boot "$@"
             ;;
+        con*)
+            shift
+            node_config "$@"
+            ;;
         li*)
             shift
             node_list "$@"
@@ -36,6 +40,7 @@ function node_help {
     echo    "DESC: shows the node groups information and what configurations, bos sessiontemplates, and images are used for each(details)"
     echo    "ACTIONS:"
     echo -e "\tboot [nodes space seperated] : Boots all nodes that are not booted into the given group's default bos template."
+    echo -e "\tconfig [nodes space seperated] : Configures all nodes that are not booted with the given group's default cfs config."
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
@@ -111,7 +116,7 @@ function node_boot {
         if [[ -z "${NODE2GROUP[$NODE]}" ]]; then
             die "Error. Node '$NODE' is not a valid node"
         fi
-        REBOOT_GROUPS[${NODE2GROUP[$NODE]}]="$NODE "
+        REBOOT_GROUPS[${NODE2GROUP[$NODE]}]+="$NODE "
     done
 
     for GROUP in ${!REBOOT_GROUPS[@]}; do
@@ -121,5 +126,33 @@ function node_boot {
             die "Group '$GROUP' is not assigned a bos template!"
         fi
         bos_boot "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$NODES"
+    done
+}
+
+function node_config {
+    local NODES=( "$@" )
+    local GROUP
+    if [[ -z "${NODES[0]}" ]]; then
+        echo "USAGE: $0 node config [xnames]" 1>&2
+        exit 1
+    fi
+    refresh_ansible_groups
+    cluster_defaults_config
+    declare -A CONFIG_GROUPS
+
+    for NODE in "${NODES[@]}"; do
+        if [[ -z "${NODE2GROUP[$NODE]}" ]]; then
+            die "Error. Node '$NODE' is not a valid node"
+        fi
+        CONFIG_GROUPS[${NODE2GROUP[$NODE]}]+="$NODE "
+    done
+
+    for GROUP in ${!CONFIG_GROUPS[@]}; do
+        NODES=$(echo "${CONFIG_GROUPS[*]}" | sed 's/ $//g' | sed 's/ /,/g')
+        echo "configuring nodes '$NODES' as group '$GROUP'..."
+        if [[ -z "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
+            die "Group '$GROUP' is not assigned a bos template!"
+        fi
+        cfs_apply "${CUR_IMAGE_CONFIG[$GROUP]}" "$NODES"
     done
 }

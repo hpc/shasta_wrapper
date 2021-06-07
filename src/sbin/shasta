@@ -8,17 +8,21 @@ done
 function main {
     export IMS_PUBLIC_KEY_ID=f25c56cb-fb05-498c-9427-582e0098fb9f
     case $1 in
-        bo*)
+        cfs*)
             shift
-            bos "$@"
-            ;;
-        co*)
-            shift
-            config "$@"
+            cfs "$@"
             ;;
         cl*)
             shift
             cluster "$@"
+            ;;
+        con*)
+            shift
+            cfs "$@"
+            ;;
+        bo*)
+            shift
+            bos "$@"
             ;;
         gr*)
             shift
@@ -52,7 +56,7 @@ function help_shasta {
   echo "ACTIONS:"
   echo "  bos : boot settings (session templates)"
   echo "  cluster : see cluster information"
-  echo "  config : ansible configuration options"
+  echo "  cfs : cfs ansible configuration options"
   echo "  group : group info and actions"
   echo "  image : image controls"
   echo "  node : node info and actions"

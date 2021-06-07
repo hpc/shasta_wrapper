@@ -45,10 +45,13 @@ function cluster_defaults_config {
 
         IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
         if [[ -z "$IMAGE_RAW" ]]; then
-            die "Error. Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
+            echo "Error. Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
+            CUR_IMAGE_NAME[$group]="Invalid"
+            CUR_IMAGE_ID[$group]="Invalid"
+        else
+            CUR_IMAGE_NAME[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.name)\"" | sed 's/"//g')
+            CUR_IMAGE_ID[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.id)\"" | sed 's/"//g')
         fi
-        CUR_IMAGE_NAME[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.name)\"" | sed 's/"//g')
-        CUR_IMAGE_ID[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.id)\"" | sed 's/"//g')
     done
     for group in "${!CONFIG_DEFAULT[@]}"; do
         CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"

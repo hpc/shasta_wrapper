@@ -11,6 +11,10 @@ function group {
             shift
             group_boot boot "$@"
             ;;
+        conf*)
+            shift
+            group_config "$@"
+            ;;
         li*)
             shift
             group_list "$@"
@@ -227,4 +231,21 @@ function group_summary {
         group_describe $ARGS "$group"
         echo ""
     done
+}
+function group_config {
+    local GROUP="$1"
+    if [[ -z "$GROUP" ]]; then
+        echo "USAGE: $0 group config [group]" 1>&2
+        exit 1
+    fi
+    refresh_ansible_groups
+    cluster_defaults_config
+
+
+
+    if [[ -z "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
+        die "Group '$GROUP' is not assigned a bos template!"
+    fi
+    echo "configuring group '$GROUP'..."
+    cfs_apply "${CUR_IMAGE_CONFIG[$GROUP]}" "$GROUP"
 }

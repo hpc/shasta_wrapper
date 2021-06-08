@@ -81,7 +81,7 @@ function group_boot {
     if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
         die "Group '$GROUP' is not a valid group" 1>&2
     fi
-    bos_reboot "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$GROUP"
+    bos_boot "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$GROUP"
 }
 
 function refresh_ansible_groups {

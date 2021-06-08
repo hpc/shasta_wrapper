@@ -31,6 +31,10 @@ function cfs {
             shift
             cfs_describe "$@"
             ;;
+        unconf*)
+            shift
+            cfs_unconfigured "$@"
+            ;;
         *)
             cfs_help
             ;;
@@ -48,6 +52,7 @@ function cfs_help {
     echo -e "\tdescribe [cfs] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs] : shows all info on a given cfs"
+    echo -e "\tunconf : List all unconfigured nodes"
 
     exit 1
 }
@@ -150,10 +155,10 @@ function cfs_edit {
 function cfs_apply {
 
     local CONFIG=$1
-    local NODES=$2
     shift
+    local NODES=( "$@" )
     local NAME=cfs`date +%s`
-    local JOB POD TRIED MAX_TRIES RET
+    local JOB POD TRIED MAX_TRIES RET NODE_STRING ARGS
 
     if [[ -z "$CONFIG" ]]; then
         echo "usage: $0 cfs apply [configuration name] [nodes|groups]"
@@ -162,8 +167,18 @@ function cfs_apply {
         exit 1
     fi
 
+    SPLIT=( $(echo $NODES | sed 's/,/ /g') )
+    for node in "${SPLIT[@]}"; do
+        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
+        cray cfs components update --enabled true "$node" > /dev/null 2>&1
+    done
 
-    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES"
+    ARGS=""
+    if [[ -n "${NODES[0]}" ]]; then
+        NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
+        ARGS="--ansible-limit '$NODES'"
+    fi
+    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG $ARGS
     sleep 1
     JOB=$(cray cfs sessions describe "$NAME" | grep job | awk '{print $3}' | sed 's/"//g')
     POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
@@ -172,30 +187,73 @@ function cfs_apply {
     set +x
 
     echo "Waiting for ansible worker pod to launch..."
-    MAX_TRIES=30
-    TRIED=0
-    RET=1
-    while [[ $RET -ne 0 ]]; do
-        sleep 2
-        kubectl logs -n services $POD inventory -f > /dev/null 2>&1
-        RET=$?
-        if [[ $TRIED -ge $MAX_TRIES ]]; then
-            echo "Failed to get logging data for 'kubectl logs -n services $POD inventory'"
-            exit 1
-        fi
-        TRIED=$(( $TRIED + 1 ))
-    done
-    sleep 2
-    set -e
-    set -x
 
-    # kubectl get pods cfs-f2df4111-fbe4-4bc5-8c65-70f5f5e03c80-xxrg2 -n services -o json | jq '.metadata.managedFields' | jq '.[].fieldsV1."f:spec"."f:containers"' | jq 'keys' | less
-    kubectl logs -n services $POD inventory -f
-    kubectl logs -n services $POD ansible-0 -f
-    kubectl logs -n services $POD ansible-1 -f
-    kubectl logs -n services $POD ansible-2 -f
-    kubectl logs -n services $POD ansible-3 -f
-    kubectl logs -n services $POD ansible-4 -f
+    cfs_logwatch "$POD"
 
     cray cfs sessions delete "$NAME"
+}
+
+function cfs_unconfigured {
+    refresh_ansible_groups
+    NODES=( $(cray cfs components list --format json | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
+
+    echo -e "${COLOR_BOLD}XNAME\t\tGROUP$COLOR_RESET"
+    for node in "${NODES[@]}"; do
+        echo -e "$node\t${NODE2GROUP[$node]}"
+    done
+}
+
+function cfs_logwatch {
+    POD_ID=$1
+    INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json |\
+        jq '.metadata.managedFields' |\
+        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
+        grep -v null |\
+        jq 'keys' |\
+        grep name |\
+        sed 's|  "k:{\\"name\\":\\"||g' |\
+        sed 's|\\"}"||g' | \
+        sed 's/,//g') )
+
+    CONTAIN=( $(kubectl get pods $POD_ID -n services -o json |\
+        jq '.metadata.managedFields' |\
+        jq '.[].fieldsV1."f:spec"."f:containers"' |\
+        grep -v null |\
+        jq 'keys' |\
+        grep name |\
+        sed 's|  "k:{\\"name\\":\\"||g' |\
+        sed 's|\\"}"||g' | \
+        sed 's/,//g') )
+
+    # init container logs
+    cmd_wait kubectl logs -n services "$POD_ID" -c "${INIT_CONTAIN[0]}"
+
+    for cont in "${INIT_CONTAIN[@]}"; do
+        echo
+        echo
+        echo "#################################################"
+        echo "### init container: $cont"
+        echo "#################################################"
+        verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
+    done
+
+    # container logs
+    echo
+    echo
+    echo "#################################################"
+    echo "### container: inventory"
+    echo "#################################################"
+    cmd_wait kubectl logs -n services "$POD_ID" -c "inventory"
+    verbose_cmd kubectl logs -n services -f "$POD_ID" -c "inventory"
+    for cont in "${CONTAIN[@]}"; do
+        if [[ "$cont" != "inventory" ]]; then
+            echo
+            echo
+            echo "#################################################"
+            echo "### container: $cont"
+            echo "#################################################"
+            verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1 |\
+                grep -v '^Waiting for the previous configuration layer to complete$'
+        fi
+    done
 }

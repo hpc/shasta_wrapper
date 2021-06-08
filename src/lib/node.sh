@@ -29,6 +29,10 @@ function node {
             shift
             node_boot shutdown "$@"
             ;;
+        unconf*)
+            shift
+            cfs_unconfigured "$@"
+            ;;
         *)
             node_help
             ;;
@@ -46,6 +50,7 @@ function node_help {
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
     echo -e "\tshow [node] : show details on a specific node group"
     echo -e "\tshutdown [nodes space seperated] : shutdown all nodes in the group"
+    echo -e "\tunconf : List all unconfigured nodes"
 
     exit 1
 }
@@ -97,6 +102,9 @@ function node_describe {
     else
         die "'$NODE' is not a valid node."
     fi
+    echo
+    echo "# CFS"
+    cray cfs components describe "$NODE"
 }
 
 function node_boot {

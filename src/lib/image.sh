@@ -305,12 +305,7 @@ function image_configure {
     cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB_ID"
     POD_ID=$(kubectl describe job -n services "$JOB_ID" | grep 'Created pod:' | awk '{print $7}')
 
-
-    cmd_wait kubectl logs -n services "$POD_ID" -c "ansible-0"
-
-    for cont in inventory ansible-0 ansible-1 ansible-2 ansible-3 ansible-4 ansible-5; do
-        kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
-    done
+    cfs_logwatch "$POD_ID"
 
     cmd_wait_output 'complete' cray cfs sessions describe "$SESSION_NAME"
 
@@ -347,4 +342,3 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images "$artifact" | grep -P '\S'
     done
 }
-

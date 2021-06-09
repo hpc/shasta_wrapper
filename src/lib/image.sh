@@ -134,6 +134,10 @@ function image_build {
         echo "[$GROUP_NAME] Image will be mapped to '$BOS_TEMPLATE' if build/configure succeed."
     fi
 
+   # quick sleep here to help consolidate the map and build messages
+   sleep 1
+
+
     mkdir -p "$IMAGE_LOGDIR"
     echo "[$GROUP_NAME] Bare image build started. Full logs at: '$IMAGE_LOGDIR/bare-${NEW_IMAGE_NAME}.log'"
     image_build_bare "$RECIPE_ID" "$NEW_IMAGE_NAME" "$GROUP_NAME" > "$IMAGE_LOGDIR/bare-${NEW_IMAGE_NAME}.log"
@@ -166,13 +170,19 @@ function image_map {
         echo "USAGE: $0 image map [bos template] [image id] <name>" 1>&2
         exit 1
     fi
+    IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.id == \"$IMAGE_ID\")")
 
-    IMAGE_ETAG=$(cray ims images list --format json | jq ".[] | select(.id == \"$IMAGE_ID\") " | jq '.link.etag' | sed 's/"//g')
+    IMAGE_ETAG=$(echo "$IMAGE_RAW" | jq '.link.etag' | sed 's/"//g')
+    IMAGE_PATH=$(echo "$IMAGE_RAW" | jq '.link.path' | sed 's/"//g')
     if [[ -z "$IMAGE_ETAG" ]]; then
         die "etag could not be found for image: '$IMAGE_ID'. Did you provide a valid image id?"
     fi
 
     bos_update_template "$BOS_TEMPLATE" ".boot_sets.compute.etag" "$IMAGE_ETAG"
+    if [[ $? -ne 0 ]]; then
+        die "Failed to map image id '$IMAGE_ID' to bos template '$BOS_TEMPLATE'" 1>&2
+    fi
+    bos_update_template "$BOS_TEMPLATE" ".boot_sets.compute.path" "$IMAGE_PATH"
     if [[ $? -ne 0 ]]; then
         die "Failed to map image id '$IMAGE_ID' to bos template '$BOS_TEMPLATE'" 1>&2
     fi

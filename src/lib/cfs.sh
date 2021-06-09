@@ -1,5 +1,7 @@
 #!/bin/bash
 
+declare -A CFS_BRANCH CFS_URL CFS_BRANCH_DEFAULT
+CONFIG_DIR="/root/templates/cfs_configurations/"
 
 function cfs {
     case "$1" in
@@ -35,6 +37,10 @@ function cfs {
             shift
             cfs_unconfigured "$@"
             ;;
+        update*)
+            shift
+            cfs_update "$@"
+            ;;
         *)
             cfs_help
             ;;
@@ -53,6 +59,7 @@ function cfs_help {
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs] : shows all info on a given cfs"
     echo -e "\tunconf : List all unconfigured nodes"
+    echo -e "\tupdate [cfs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
 
     exit 1
 }
@@ -122,7 +129,6 @@ function cfs_clone {
 
 function cfs_edit {
     local CONFIG="$1"
-    local CONFIG_DIR
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 cfs edit [cfs]" 1>&2
         exit 1
@@ -131,7 +137,6 @@ function cfs_edit {
     cfs_exit_if_not_valid "$CONFIG"
     set -e
 
-    local CONFIG_DIR="/root/templates/cfs_configurations/"
     cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
     if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
@@ -253,7 +258,90 @@ function cfs_logwatch {
             echo "### container: $cont"
             echo "#################################################"
             verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1 |\
-                grep -v '^Waiting for the previous configuration layer to complete$'
+                grep -v '^Waiting for the previous configuration layer to complete$' |\
+                grep -v '^Waiting for Inventory$'
+
         fi
     done
+}
+
+function read_git_config {
+    local REPO
+
+    source /etc/cfs_defaults.conf
+
+    for REPO in "${!CFS_URL[@]}"; do
+        if [[ -z "${CFS_BRANCH[$REPO]}" ]]; then
+            die "$REPO is not defined for 'CFS_BRANCH'"
+        fi
+        CFS_BRANCH_DEFAULT["${CFS_URL[$REPO]}"]="${CFS_BRANCH[$REPO]}"
+    done
+    for REPO in "${!CFS_BRANCH[@]}"; do
+        if [[ -z "${CFS_URL[$REPO]}" ]]; then
+            die "$REPO is not defined for 'CFS_URL'"
+        fi
+    done
+}
+
+function cfs_update {
+    local CONFIG="$1"
+    local FILE="$CONFIG_DIR/$CONFIG.json"
+    local LAYER LAYER_URL
+    if [[ -z "$CONFIG" ]]; then
+        echo "USAGE: $0 cfs edit [cfs]" 1>&2
+        exit 1
+    fi
+
+    cfs_exit_if_not_valid "$CONFIG"
+    set -e
+
+    read_git_config
+
+    cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
+
+    if [[ ! -s "$FILE" ]]; then
+        rm -f "$FILE"
+        die "Error! Config '$CONFIG' does not exist!"
+    fi
+    tmpdir
+
+    GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
+    GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
+    for LAYER in $(seq 0 $GIT_REPO_COUNT); do
+        cfs_update_git "$FILE" "$LAYER" "$CONFIG"
+    done
+    rmdir "$TMPDIR" > /dev/null 2>&1
+}
+
+function cfs_update_git {
+    local FILE="$1"
+    local LAYER="$2"
+    local CONFIG="$3"
+
+    set -e
+    LAYER_URL=$(cat "$FILE" | jq ".layers[$LAYER].cloneUrl" | sed 's/"//g')
+    if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
+        LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
+
+        echo "cloning $LAYER_URL"
+        cd "$TMPDIR"
+        git clone "$LAYER_URL" "$TMPDIR/$LAYER"
+        cd "$TMPDIR/$LAYER"
+        git checkout "${CFS_BRANCH_DEFAULT[$LAYER_URL]}"
+
+        NEW_COMMIT=$(git rev-parse HEAD)
+        if [[ "$LAYER_CUR_COMMIT" != "$NEW_COMMIT" ]]; then
+            echo "old commit: $LAYER_CUR_COMMIT"
+            echo "new commit: $NEW_COMMIT"
+            prompt "Would you like to apply the new commit '$NEW_COMMIT' for '$LAYER_URL'?" "Yes" "No" || return 0
+            json_set_field "$FILE" ".layers[$LAYER].commit" "$NEW_COMMIT"
+            verbose_cmd cray cfs configurations update $CONFIG --file "$CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
+        else
+            echo "No updates. commit: '$NEW_COMMIT', old commit: '$LAYER_CUR_COMMIT'"
+        fi
+    else
+        echo "$LAYER_URL is not defined in /etc/cfs_defaults.conf... skipping"
+    fi
+    rm -rf "$TMPDIR/$LAYER"
+    set +e
 }

@@ -39,6 +39,7 @@ rm -r %{buildroot} || true
 %defattr(-,root,root)
 %attr(0750,root,root) %SBINDIR%/shasta
 %config %attr(0640,root,root) %CONFDIR%/cluster_defaults.conf
+%config %attr(0640,root,root) %CONFDIR%/cfs_defaults.conf
 %attr(0640,root,root) %LIBDIR%/*
 
 %post

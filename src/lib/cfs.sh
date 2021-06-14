@@ -25,6 +25,10 @@ function cfs {
             shift
             cfs_delete "$@"
             ;;
+        job*)
+            shift
+            cfs_job "$@"
+            ;;
         li*)
             shift
             cfs_list "$@"
@@ -185,8 +189,7 @@ function cfs_apply {
     fi
     cray cfs sessions create --name "$NAME" --configuration-name $CONFIG $ARGS
     sleep 1
-    JOB=$(cray cfs sessions describe "$NAME" | grep job | awk '{print $3}' | sed 's/"//g')
-    POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
+    cfs_log_job "$NAME"
 
     set +e
     set +x
@@ -206,6 +209,19 @@ function cfs_unconfigured {
     for node in "${NODES[@]}"; do
         echo -e "$node\t${NODE2GROUP[$node]}"
     done
+}
+
+function cfs_log_job {
+    local CFS="$1"
+    local POD
+
+    set -e
+    JOB=$(cray cfs sessions describe "$CFS" | grep job | awk '{print $3}' | sed 's/"//g')
+    cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB"
+    POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
+    set +e
+
+    cfs_logwatch "$POD"
 }
 
 function cfs_logwatch {
@@ -231,14 +247,13 @@ function cfs_logwatch {
         sed 's/,//g') )
 
     # init container logs
-    cmd_wait kubectl logs -n services "$POD_ID" -c "${INIT_CONTAIN[0]}"
-
     for cont in "${INIT_CONTAIN[@]}"; do
         echo
         echo
         echo "#################################################"
         echo "### init container: $cont"
         echo "#################################################"
+        cmd_wait kubectl logs -n services "$POD_ID" -c "$cont"
         verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
     done
 

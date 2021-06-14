@@ -8,6 +8,10 @@ function bos {
             shift
             bos_clone "$@"
             ;;
+        config*)
+            shift
+            bos_boot configure "$@"
+            ;;
         delete)
             shift
             bos_delete "$@"
@@ -19,6 +23,10 @@ function bos {
         ed*)
             shift
             bos_edit "$@"
+            ;;
+        job*)
+            shift
+            bos_job "$@"
             ;;
         li*)
             shift
@@ -43,6 +51,7 @@ function bos_help {
     echo    "DESC: bos sessiontemplates define the boot parameters, image, and config to use at boot. Direct access to these can be achieved via 'cray bos sessiontemplate'"
     echo    "ACTIONS:"
     echo -e "\tclone [src] [dest] : copy an existing template to a new one with a different name"
+    echo -e "\tconfig [nodes|groups] : Configure the given nodes"
     echo -e "\tedit [template] : edit a bos session template"
     echo -e "\tdescribe [template] : (same as show)"
     echo -e "\tlist : show all bos session templates"

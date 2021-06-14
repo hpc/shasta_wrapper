@@ -104,7 +104,16 @@ function node_describe {
     fi
     echo
     echo "# CFS"
-    cray cfs components describe "$NODE"
+    RAW_CFS=$(cray cfs components describe "$NODE" --format json)
+    echo -n "configurationStatus:  "
+    echo "$RAW_CFS" | jq '.configurationStatus' | sed 's/"//g'
+    echo -n "enabled:              "
+    echo "$RAW_CFS" | jq '.enabled' | sed 's/"//g'
+    echo -n "errorCount:           "
+    echo "$RAW_CFS" | jq '.errorCount' | sed 's/"//g'
+    echo -n "retryPolicy:          "
+    echo "$RAW_CFS" | jq '.retryPolicy' | sed 's/"//g'
+
 }
 
 function node_boot {

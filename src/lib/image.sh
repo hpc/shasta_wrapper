@@ -312,10 +312,7 @@ function image_configure {
     cmd_wait_output "job =" cray cfs sessions describe "$SESSION_NAME"
 
     JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
-    cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB_ID"
-    POD_ID=$(kubectl describe job -n services "$JOB_ID" | grep 'Created pod:' | awk '{print $7}')
-
-    cfs_logwatch "$POD_ID"
+    cfs_log_job "$SESSION_NAME"
 
     cmd_wait_output 'complete' cray cfs sessions describe "$SESSION_NAME"
 

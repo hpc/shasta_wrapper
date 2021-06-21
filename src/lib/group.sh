@@ -247,5 +247,5 @@ function group_config {
         die "Group '$GROUP' is not assigned a bos template!"
     fi
     echo "configuring group '$GROUP'..."
-    cfs_apply "${CUR_IMAGE_CONFIG[$GROUP]}" "$GROUP"
+    bos_boot configure "${BOS_DEFAULT[$GROUP]}" "$GROUP"
 }

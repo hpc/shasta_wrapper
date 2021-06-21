@@ -82,7 +82,7 @@ function cfs_list {
             fi
         done
         echo
-    done
+    done | sort
 }
 
 function cfs_describe {
@@ -141,24 +141,27 @@ function cfs_edit {
     cfs_exit_if_not_valid "$CONFIG"
     set -e
 
-    cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
+    (
+        flock -x 42
+        cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
-    if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
-        rm -f "$CONFIG_DIR/$CONFIG.json"
-        die "Error! Config '$CONFIG' does not exist!"
-    fi
+        if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
+            rm -f "$CONFIG_DIR/$CONFIG.json"
+            die "Error! Config '$CONFIG' does not exist!"
+        fi
 
 
 
-    set +e
-    edit_file "$CONFIG_DIR/$CONFIG.json"
-    if [[ "$?" == 0 ]]; then
-        echo -n "Updating '$CONFIG' with new data..."
-        verbose_cmd cray cfs configurations update $CONFIG --file ""$CONFIG_DIR/$CONFIG.json"" --format json > /dev/null 2>&1
-        echo 'done'
-    else
-        echo "No modifications made. Not pushing changes up"
-    fi
+        set +e
+        edit_file "$CONFIG_DIR/$CONFIG.json"
+        if [[ "$?" == 0 ]]; then
+            echo -n "Updating '$CONFIG' with new data..."
+            verbose_cmd cray cfs configurations update $CONFIG --file ""$CONFIG_DIR/$CONFIG.json"" --format json > /dev/null 2>&1
+            echo 'done'
+        else
+            echo "No modifications made. Not pushing changes up"
+        fi
+    ) 42>/tmp/lock
 }
 
 function cfs_apply {
@@ -215,7 +218,13 @@ function cfs_log_job {
     local CFS="$1"
     local POD
 
+    if [[ -z "$CFS" ]]; then
+        echo "USAGE: $0 cfs job log <cfs jobid>"
+        exit 1
+    fi
+
     set -e
+    cmd_wait_output "job" cray cfs sessions describe "$CFS"
     JOB=$(cray cfs sessions describe "$CFS" | grep job | awk '{print $3}' | sed 's/"//g')
     cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB"
     POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
@@ -253,7 +262,7 @@ function cfs_logwatch {
         echo "#################################################"
         echo "### init container: $cont"
         echo "#################################################"
-        cmd_wait kubectl logs -n services "$POD_ID" -c "$cont"
+        cmd_wait_output "Cloning successful" kubectl logs -n services "$POD_ID" -c "$cont"
         verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
     done
 
@@ -301,7 +310,7 @@ function read_git_config {
 function cfs_update {
     local CONFIG="$1"
     local FILE="$CONFIG_DIR/$CONFIG.json"
-    local LAYER LAYER_URL
+    local LAYER LAYER_URL FLOCK
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 cfs edit [cfs]" 1>&2
         exit 1
@@ -311,21 +320,24 @@ function cfs_update {
     set -e
 
     read_git_config
+    (
+        flock -x 42
 
-    cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
+        cray cfs configurations describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
 
-    if [[ ! -s "$FILE" ]]; then
-        rm -f "$FILE"
-        die "Error! Config '$CONFIG' does not exist!"
-    fi
-    tmpdir
+        if [[ ! -s "$FILE" ]]; then
+            rm -f "$FILE"
+            die "Error! Config '$CONFIG' does not exist!"
+        fi
+       tmpdir
 
-    GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
-    GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
-    for LAYER in $(seq 0 $GIT_REPO_COUNT); do
-        cfs_update_git "$FILE" "$LAYER" "$CONFIG"
-    done
-    rmdir "$TMPDIR" > /dev/null 2>&1
+        GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
+        GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
+        for LAYER in $(seq 0 $GIT_REPO_COUNT); do
+            cfs_update_git "$FILE" "$LAYER" "$CONFIG"
+        done
+        rmdir "$TMPDIR" > /dev/null 2>&1
+    ) 42>/tmp/lock
 }
 
 function cfs_update_git {

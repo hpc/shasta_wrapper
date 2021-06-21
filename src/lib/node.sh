@@ -170,6 +170,6 @@ function node_config {
         if [[ -z "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi
-        cfs_apply "${CUR_IMAGE_CONFIG[$GROUP]}" "$NODES"
+        bos_boot configure "${BOS_DEFAULT[$GROUP]}" "$NODES"
     done
 }

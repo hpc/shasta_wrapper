@@ -182,7 +182,7 @@ function bos_boot {
     done
 
     if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
-        echo "USAGE: $0 bos reboot [template] [target nodes or groups]" 1>&2
+        echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
     bos_exit_if_not_valid "$CONFIG"

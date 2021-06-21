@@ -78,7 +78,7 @@ function bos_job_delete {
 
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_bos_jobs
-        JOBS=( $(echo "$BOS_JOBS") )
+        JOBS=( "${BOS_JOBS[@]}" )
         prompt "Would you really like to delete all ${#JOBS[@]} jobs?" "Yes" "No" || exit 0
     fi
 

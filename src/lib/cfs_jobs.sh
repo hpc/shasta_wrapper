@@ -51,11 +51,11 @@ function refresh_cfs_jobs_raw {
 
 function cfs_job_list {
     refresh_cfs_jobs_raw
-    echo "${COLOR_BOLD}DATE                  ID                                             STATE$COLOR_RESET"
-    echo "$CFS_JOBS_RAW" |\
+    printf "${COLOR_BOLD}%19s   %44s   %8s$COLOR_RESET\n" DATE ID STATE
+    printf "%19s   %44s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
         jq '.[] | "\(.status.session.startTime)   \(.name)   \(.status.session.status)"' |\
         sed 's/"//g' |\
-        sort
+        sort)
 }
 
 function cfs_job_describe {
@@ -87,6 +87,9 @@ function cfs_job_delete {
         refresh_cfs_jobs_raw
         JOBS=( $(echo "$CFS_JOBS_RAW" | jq '.[].name' | sed 's/"//g') )
         prompt "Would you really like to delete all ${#JOBS[@]} jobs?(WARNING this will also delete all bos jobs!)" "Yes" "No" || exit 0
+
+        echo
+        echo "# BOS jobs"
         bos_job_delete --all || exit 0
     elif [[ "${JOBS[0]}" == "--complete" ]]; then
         refresh_cfs_jobs_raw

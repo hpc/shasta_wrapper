@@ -16,6 +16,10 @@ function bos_job {
             shift
             bos_job_list "$@"
             ;;
+        log*)
+            shift
+            bos_job_log "$@"
+            ;;
         sh*)
             shift
             bos_job_describe "$@"
@@ -86,4 +90,37 @@ function bos_job_delete {
         verbose_cmd cray bos session delete $job
         sleep 2
     done
+}
+
+function bos_job_log {
+    JOB="$1"
+
+    if [[ -z "$JOB" ]]; then
+        echo "USAGE: $0 bos job log <bos job id>"
+        exit 1
+    fi
+
+    KUBE_JOB_ID=$(bos_job_describe "$JOB" | grep boa_job_name | awk '{print $3}' | sed 's/"//g')
+
+    if [[ -z "$KUBE_JOB_ID" ]]; then
+        die "Failed to find bos job $JOB"
+    fi
+
+    cd /tmp
+    cmd_wait_output "Created pod:" kubectl describe job -n services "$KUBE_JOB_ID"
+    POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
+    cmd_wait kubectl logs -n services "$POD" -c boa
+
+    echo
+    echo "################################################"
+    echo "#### INFO"
+    echo "################################################"
+    echo "BOS SESSION:    $JOB"
+    echo "KUBERNETES JOB: $KUBE_JOB_ID"
+    echo "KUBERNETES POD: $POD"
+    echo "################################################"
+    echo "#### END INFO"
+    echo "################################################"
+
+    kubectl logs -n services "$POD" -c boa -f
 }

@@ -192,9 +192,7 @@ function bos_boot {
     fi
     BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
 
-    cmd_wait_output "Created pod:" kubectl describe job -n services "$KUBE_JOB_ID"
 
-    POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
 
     # if booting more than one node,
     if [[ "${#TARGET}" -ge 20 ]]; then
@@ -203,10 +201,8 @@ function bos_boot {
         LOGFILE="$BOOT_LOGS/$ACTION-$TARGET.log"
     fi
 
-    cd /tmp
     mkdir -p "$BOOT_LOGS"
-    cmd_wait kubectl logs -n services "$POD" -c boa
-    nohup kubectl logs -n services "$POD" -c boa -f > "$LOGFILE" 2>&1 &
+    bos_job_log "$BOS_SESSION" > "$LOGFILE" 2>&1 &
     echo "$ACTION action initiated. details:"
     echo "BOS Session: $BOS_SESSION"
     echo "kubernetes pod: $POD"

@@ -154,6 +154,8 @@ function image_build {
     fi
     CONFIG_IMAGE_ID="$RETURN"
 
+    echo "[$GROUP_NAME] Deleting bare image, as it's no longer needed."
+    image_delete "$BARE_IMAGE_ID" > /dev/null 2>&1
 
 
     if [[ -n "$BOS_TEMPLATE" ]]; then
@@ -167,7 +169,7 @@ function image_map {
     local GROUP="$3"
 
     if [[ -z "$BOS_TEMPLATE" || -z "$IMAGE_ID" ]]; then
-        echo "USAGE: $0 image map [bos template] [image id] <name>" 1>&2
+        echo "USAGE: $0 image map [bos template] [image id]" 1>&2
         exit 1
     fi
     IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.id == \"$IMAGE_ID\")")
@@ -236,24 +238,7 @@ function image_build_bare {
     IMS_JOB_ID=$(echo "$JOB_RAW" | jq '.id' | sed 's/"//g')
     echo "  Grabbing id = '$IMS_JOB_ID' from output..."
 
-    sleep 3
-    cmd_wait_output "SuccessfulCreate" kubectl describe job -n ims $JOB_ID
-    POD=$(kubectl describe job -n ims $JOB_ID | grep SuccessfulCreate | awk '{print $7}')
-    echo "  Grabbing pod_id = '$POD' from output..."
-
-    cmd_wait kubectl logs -n ims -f $POD -c build-ca-rpm
-    sleep 1
-    for log in fetch-recipe wait-for-repos build-ca-rpm build-image; do
-        verbose_cmd kubectl logs -n ims -f $POD -c $log 2>&1
-        sleep 2
-    done
-
-    verbose_cmd kubectl describe job -n ims $JOB_ID | grep -q 'Pods Statuses:  0 Running / 1 Succeeded'
-    RET=$?
-    if [[ $RET -eq 0 ]]; then
-        echo "[$GROUP_NAME] IMAGE BUILD FAILED: job id '$JOB_ID'"
-        die "[$GROUP_NAME] IMAGE BUILD FAILED: job id '$JOB_ID'"
-    fi
+    image_logwatch "$JOB_ID"
 
     set +e
     cmd_wait_output "success|error" cray ims jobs describe $IMS_JOB_ID
@@ -274,6 +259,81 @@ function image_build_bare {
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID"
     RETURN="$IMAGE_ID"
     return 0
+}
+
+function image_logwatch {
+    KUBE_JOB="$1"
+
+    sleep 3
+    cmd_wait_output "SuccessfulCreate" kubectl describe job -n ims $KUBE_JOB
+    POD_ID=$(kubectl describe job -n ims $JOB_ID | grep SuccessfulCreate | awk '{print $7}')
+    echo "  Grabbing pod_id = '$POD' from output..."
+
+
+    verbose_cmd kubectl describe job -n ims $JOB_ID | grep -q 'Pods Statuses:  0 Running / 1 Succeeded'
+    RET=$?
+    if [[ $RET -eq 0 ]]; then
+        echo "[$GROUP_NAME] IMAGE BUILD FAILED: job id '$JOB_ID'"
+        die "[$GROUP_NAME] IMAGE BUILD FAILED: job id '$JOB_ID'"
+    fi
+
+    echo "################################################"
+    echo "#### INFO"
+    echo "################################################"
+    echo "IMS SESSION:    $IMS_JOB_ID"
+    echo "KUBERNETES JOB: $JOB_ID"
+    echo "KUBERNETES POD: $POD_ID"
+    echo "################################################"
+    echo "#### END INFO"
+    echo "################################################"
+
+    INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n ims -o json |\
+        jq '.metadata.managedFields' |\
+        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
+        grep -v null |\
+        jq 'keys' |\
+        grep name |\
+        sed 's|  "k:{\\"name\\":\\"||g' |\
+        sed 's|\\"}"||g' | \
+        sed 's/,//g') )
+
+    CONTAIN=( $(kubectl get pods $POD_ID -n ims -o json |\
+        jq '.metadata.managedFields' |\
+        jq '.[].fieldsV1."f:spec"."f:containers"' |\
+        grep -v null |\
+        jq 'keys' |\
+        grep name |\
+        sed 's|  "k:{\\"name\\":\\"||g' |\
+        sed 's|\\"}"||g' | \
+        sed 's/,//g') )
+
+    # init container logs
+    for cont in "${INIT_CONTAIN[@]}"; do
+        if [[ "$cont" != "build-image" && "$cont" != 'buildenv-sidecar' ]]; then
+            echo
+            echo
+            echo "#################################################"
+            echo "### init container: $cont"
+            echo "#################################################"
+            cmd_wait kubectl logs -n ims -f "$POD_ID" -c $cont
+            verbose_cmd kubectl logs -n ims -f "$POD_ID" -c $cont 2>&1
+        fi
+    done
+
+    echo
+    echo
+    echo "#################################################"
+    echo "### kiwi logs"
+    echo "#################################################"
+    cmd_wait kubectl logs -n ims $POD_ID -c build-image
+    sleep 4
+    verbose_cmd kubectl exec -ti "$POD_ID" -n ims -c build-image -- tail -f /mnt/image/kiwi.log 2>&1
+    echo "#################################################"
+    echo "you may get more info from \`kubectl logs -n ims -f $POD -c build-image\`"
+    echo "#################################################"
+    echo
+    echo
+
 }
 
 function image_configure {

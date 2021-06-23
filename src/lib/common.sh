@@ -43,9 +43,10 @@ function cmd_wait {
         echo -n '.'
         "$@" > /dev/null 2>&1
         RET=$?
-        sleep 2
+        if [[ $RET -ne 0 ]]; then
+            sleep 2
+        fi
     done
-    sleep 2
 }
 
 function cmd_wait_output {
@@ -58,10 +59,11 @@ function cmd_wait_output {
         echo -n '.'
         "$@" | egrep -q "$OUTPUT"  > /dev/null 2>&1
         RET=$?
-        sleep 2
+        if [[ $RET -ne 0 ]]; then
+            sleep 2
+        fi
     done
     echo
-    sleep 2
 }
 
 function verbose_cmd {

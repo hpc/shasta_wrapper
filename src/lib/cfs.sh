@@ -226,10 +226,20 @@ function cfs_log_job {
     set -e
     cmd_wait_output "job" cray cfs sessions describe "$CFS"
     JOB=$(cray cfs sessions describe "$CFS" | grep job | awk '{print $3}' | sed 's/"//g')
+
     cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB"
     POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
     set +e
 
+    echo "################################################"
+    echo "#### INFO"
+    echo "################################################"
+    echo "CFS SESSION:    $CFS"
+    echo "KUBERNETES JOB: $JOB"
+    echo "KUBERNETES POD: $POD"
+    echo "################################################"
+    echo "#### END INFO"
+    echo "################################################"
     cfs_logwatch "$POD"
 }
 
@@ -262,7 +272,7 @@ function cfs_logwatch {
         echo "#################################################"
         echo "### init container: $cont"
         echo "#################################################"
-        cmd_wait_output "Cloning successful" kubectl logs -n services "$POD_ID" -c "$cont"
+        cmd_wait_output "Cloning successful" kubectl logs -n services "$POD_ID" -c "$cont" > /dev/null 2>&1
         verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
     done
 
@@ -272,7 +282,7 @@ function cfs_logwatch {
     echo "#################################################"
     echo "### container: inventory"
     echo "#################################################"
-    cmd_wait kubectl logs -n services "$POD_ID" -c "inventory"
+    cmd_wait kubectl logs -n services "$POD_ID" -c "inventory"  > /dev/null 2>&1
     verbose_cmd kubectl logs -n services -f "$POD_ID" -c "inventory"
     for cont in "${CONTAIN[@]}"; do
         if [[ "$cont" != "inventory" ]]; then

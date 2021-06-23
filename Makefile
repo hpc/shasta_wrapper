@@ -55,3 +55,6 @@ install: all
 	sed -i 's|%LIBDIR%|$(LIBDIR)|g' "$(DESTDIR)$(SBINDIR)/shasta"
 	sed -i 's|%VERSION%|$(VERSION)|g' "$(DESTDIR)$(SBINDIR)/shasta"
 	sed -i 's|%RELEASE%|$(RELEASE)|g' "$(DESTDIR)$(SBINDIR)/shasta"
+
+test:
+	SHASTACMD_LIBDIR=./src/lib ./src/sbin/shasta regression build

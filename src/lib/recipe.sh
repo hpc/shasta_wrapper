@@ -37,7 +37,6 @@ function recipe_help {
     echo    "ACTIONS:"
     echo -e "\tclone [cur recipe id] [new recipe name] : create a new recipe from existing one"
     echo -e "\tdelete [recipe id]: delete a recipe"
-    echo -e "\tget [recipe id]: download a recipe(comes in tar format)"
     echo -e "\tlist : list all recipes"
 
     exit 1
@@ -49,11 +48,13 @@ function refresh_recipes {
         return;
     fi
 
+    RECIPE_RAW=$(cray ims recipes list --format json )
+
     IFS=$'\n'
-    RECIPE_RAW=( $(cray ims recipes list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
+    RECIPES=( $( echo "$RECIPE_RAW" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
     IFS=$' \t\n'
 
-    for recipe in "${RECIPE_RAW[@]}"; do
+    for recipe in "${RECIPES[@]}"; do
         SPLIT=( $recipe )
         id="${SPLIT[0]}"
         created="${SPLIT[1]}"
@@ -70,7 +71,7 @@ function recipe_list {
     for id in "${!RECIPE_ID2NAME[@]}"; do
         name="${RECIPE_ID2NAME[$id]}"
         created="${RECIPE_ID2CREATED[$id]}"
-        for group in "${!RECIPE_DEFAULT[@]}"; do 
+        for group in "${!RECIPE_DEFAULT[@]}"; do
             if [[ "${RECIPE_DEFAULT[$group]}" == "$id" ]]; then
                 name="$name$COLOR_BOLD($group)$COLOR_RESET"
             fi
@@ -94,7 +95,7 @@ function recipe_get {
         exit 1
     fi
     refresh_recipes
-    
+
     RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"$RECIPE_ID\")")
     if [[ -z "$RECIPE" ]]; then
         die "'$RECIPE_ID' does not exist"
@@ -115,7 +116,7 @@ function recipe_clone {
     local S3_ARTIFACT_BUCKET=ims
     local NEW_ARTIFACT_FILE="$NEW_RECIPE_NAME.tar.gz"
     local RECIPE RECIPE_NAME S3_ARTIFACT_KEY ARTIFACT_FILE NEW_RECIPE_ID
- 
+
     if [[ -z "$RECIPE_ID" || -z "$NEW_RECIPE_NAME" ]]; then
         echo "USAGE $0 recipe clone <recipe id> <new name>"
         exit 1
@@ -129,7 +130,7 @@ function recipe_clone {
     RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
     ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
     S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
-    recipe_get 
+    recipe_get
     mkdir -p $RECIPE_NAME
     tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
     rm -f $ARTIFACT_FILE

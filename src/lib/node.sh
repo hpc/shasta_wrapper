@@ -36,7 +36,7 @@ function node {
         *)
             node_help
             ;;
-    esac
+    esac    
 }
 
 function node_help {
@@ -51,7 +51,7 @@ function node_help {
     echo -e "\tshow [node] : show details on a specific node group"
     echo -e "\tshutdown [nodes space seperated] : shutdown all nodes in the group"
     echo -e "\tunconf : List all unconfigured nodes"
-
+    
     exit 1
 }
 function node_list {
@@ -78,9 +78,10 @@ function node_describe {
        die "'$NODE' is not a valid node"
     fi
     GROUP="${NODE2GROUP[$NODE]}"
+    image_defaults
     cluster_defaults_config
     if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
-
+        
 
         CONFIG="${CUR_IMAGE_CONFIG[$GROUP]}"
         IMAGE_ETAG="${CUR_IMAGE_ETAG[$GROUP]}"
@@ -102,7 +103,7 @@ function node_describe {
     else
         die "'$NODE' is not a valid node."
     fi
-    echo
+    echo 
     echo "# CFS"
     RAW_CFS=$(cray cfs components describe "$NODE" --format json)
     echo -n "configurationStatus:  "
@@ -113,7 +114,7 @@ function node_describe {
     echo "$RAW_CFS" | jq '.errorCount' | sed 's/"//g'
     echo -n "retryPolicy:          "
     echo "$RAW_CFS" | jq '.retryPolicy' | sed 's/"//g'
-
+    
 }
 
 function node_boot {
@@ -135,7 +136,7 @@ function node_boot {
         fi
         REBOOT_GROUPS[${NODE2GROUP[$NODE]}]+="$NODE "
     done
-
+    
     for GROUP in ${!REBOOT_GROUPS[@]}; do
         NODES=$(echo "${REBOOT_GROUPS[*]}" | sed 's/ $//g' | sed 's/ /,/g')
         prompt "Ok to reboot GROUP '$GROUP' for nodes: $NODES?" "Yes" "No" || exit 0
@@ -163,7 +164,7 @@ function node_config {
         fi
         CONFIG_GROUPS[${NODE2GROUP[$NODE]}]+="$NODE "
     done
-
+    
     for GROUP in ${!CONFIG_GROUPS[@]}; do
         NODES=$(echo "${CONFIG_GROUPS[*]}" | sed 's/ $//g' | sed 's/ /,/g')
         echo "configuring nodes '$NODES' as group '$GROUP'..."

@@ -1,12 +1,17 @@
 
 declare -A RECIPE_ID2NAME
 declare -A RECIPE_ID2CREATED
+RECIPE_RAW=""
 
 function recipe {
     case "$1" in
         cl*)
             shift
             recipe_clone "$@"
+            ;;
+        get)
+            shift
+            recipe_get "$@"
             ;;
         li*)
             shift
@@ -32,19 +37,23 @@ function recipe_help {
     echo    "ACTIONS:"
     echo -e "\tclone [cur recipe id] [new recipe name] : create a new recipe from existing one"
     echo -e "\tdelete [recipe id]: delete a recipe"
+    echo -e "\tget [recipe id]: download a recipe(comes in tar format)"
     echo -e "\tlist : list all recipes"
 
     exit 1
 }
 
 function refresh_recipes {
-    local RAW SPLIT id created name
+    local SPLIT id created name
+    if [[ -n "$RECIPE_RAW" && "$1" != '--force' ]]; then
+        return;
+    fi
 
     IFS=$'\n'
-    RAW=( $(cray ims recipes list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
+    RECIPE_RAW=( $(cray ims recipes list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
     IFS=$' \t\n'
 
-    for recipe in "${RAW[@]}"; do
+    for recipe in "${RECIPE_RAW[@]}"; do
         SPLIT=( $recipe )
         id="${SPLIT[0]}"
         created="${SPLIT[1]}"
@@ -61,7 +70,7 @@ function recipe_list {
     for id in "${!RECIPE_ID2NAME[@]}"; do
         name="${RECIPE_ID2NAME[$id]}"
         created="${RECIPE_ID2CREATED[$id]}"
-        for group in "${!RECIPE_DEFAULT[@]}"; do
+        for group in "${!RECIPE_DEFAULT[@]}"; do 
             if [[ "${RECIPE_DEFAULT[$group]}" == "$id" ]]; then
                 name="$name$COLOR_BOLD($group)$COLOR_RESET"
             fi
@@ -74,23 +83,54 @@ function recipe_delete {
      verbose_cmd cray ims recipes delete "$@"
 }
 
+function recipe_get {
+    local RECIPE_ID="$1"
+    local FILE="$2"
+
+    local S3_ARTIFACT_BUCKET=ims
+    local RECIPE ARTIFACT_FILE
+    if [[ -z "$RECIPE_ID" ]]; then
+        echo "USAGE: $0 recipe get <recipeid>"
+        exit 1
+    fi
+    refresh_recipes
+    
+    RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"$RECIPE_ID\")")
+    if [[ -z "$RECIPE" ]]; then
+        die "'$RECIPE_ID' does not exist"
+    fi
+    RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
+    ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
+    S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
+
+    verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
+}
+
+
+
 function recipe_clone {
     local RECIPE_ID="$1"
     local NEW_RECIPE_NAME="$2"
 
     local S3_ARTIFACT_BUCKET=ims
-    local ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
     local NEW_ARTIFACT_FILE="$NEW_RECIPE_NAME.tar.gz"
-    local RAW RECIPE_NAME S3_ARTIFACT_KEY NEW_RECIPE_ID
+    local RECIPE RECIPE_NAME S3_ARTIFACT_KEY ARTIFACT_FILE NEW_RECIPE_ID
+ 
+    if [[ -z "$RECIPE_ID" || -z "$NEW_RECIPE_NAME" ]]; then
+        echo "USAGE $0 recipe clone <recipe id> <new name>"
+        exit 1
+    fi
+    refresh_recipes
 
     set -e
     echo "# cray ims recipes list --format json | jq \".[] | select(.id == \\\"$RECIPE_ID\\\")\""
-    RAW=$(cray ims recipes list --format json | jq ".[] | select(.id == \"$RECIPE_ID\")")
+    RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"$RECIPE_ID\")")
 
-    RECIPE_NAME=$(echo "$RAW" | jq '.name' | sed 's/"//g')
-    S3_ARTIFACT_KEY=$(echo "$RAW" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
+    RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
+    ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
+    S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
+    recipe_get 
     mkdir -p $RECIPE_NAME
-    verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
     tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
     rm -f $ARTIFACT_FILE
 
@@ -118,15 +158,16 @@ function recipe_edit {
 
     local S3_ARTIFACT_BUCKET=ims
     local ARTIFACT_FILE
-    local RAW RECIPE_NAME S3_ARTIFACT_KEY NEW_RECIPE_ID
+    local RECIPE RECIPE_NAME S3_ARTIFACT_KEY NEW_RECIPE_ID
 
     set -e
     echo "# cray ims recipes list --format json | jq \".[] | select(.id == \\\"$RECIPE_ID\\\")\""
-    RAW=$(cray ims recipes list --format json | jq ".[] | select(.id == \"$RECIPE_ID\")")
+    refresh_recipes
+    RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"$RECIPE_ID\")")
 
-    RECIPE_NAME=$(echo "$RAW" | jq '.name' | sed 's/"//g')
+    RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
     ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
-    S3_ARTIFACT_KEY=$(echo "$RAW" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
+    S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
     mkdir -p $RECIPE_NAME
     verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
     tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"

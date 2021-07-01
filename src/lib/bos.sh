@@ -1,6 +1,8 @@
 
 BOS_CONFIG_DIR="/root/templates/"
+BOS_TEMPLATES=( )
 BOOT_LOGS="/var/log/boot/"`date +%y-%m-%dT%H-%M-%S`
+BOS_RAW=""
 
 function bos {
     case "$1" in
@@ -57,18 +59,35 @@ function bos_help {
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
-
+ 
     exit 1
+}
+
+function refresh_bos_raw {
+    if [[ -n "$BOS_RAW" && "$1" != '--force' ]]; then
+        return 0
+    fi
+    BOS_RAW=$(cray bos sessiontemplate list --format json)
+    if [[ -z "$BOS_RAW" ]]; then
+       echo "Error retrieving bos data... Some information may be unavailable"
+       return 1
+    fi
+    return 0
 }
 
 function bos_list {
     local BOS_LINES line group
     cluster_defaults_config
+    refresh_bos_raw
     echo "NAME(Nodes applied to at boot)"
-    BOS_LINES=( $(cray bos sessiontemplate list --format json | jq '.[].name' | sed 's/"//g') )
-
+    BOS_LINES=( $(echo "$BOS_RAW" | jq '.[].name' | sed 's/"//g') )
+    if [[ -z "$BOS_LINES" ]]; then
+        die "Error unable to get bos information"
+    fi
+    BOS_TEMPLATES=( )
     for line in "${BOS_LINES[@]}"; do
         echo -n "$line"
+        BOS_TEMPLATES+=( $line )
         for group in "${!BOS_DEFAULT[@]}"; do
             if [[ "${BOS_DEFAULT[$group]}" == "$line" ]]; then
                  echo -n "$COLOR_BOLD($group)$COLOR_RESET"
@@ -79,24 +98,24 @@ function bos_list {
 }
 
 function bos_describe {
-    cray bos sessiontemplate describe "$1"
-    exit $?
+    cray bos sessiontemplate describe "$@"
+    return $?
 }
 
 function bos_delete {
-    cray bos sessiontemplate delete "$1"
-    exit $?
+    cray bos sessiontemplate delete "$@"
+    return $?
 }
 
 function bos_exit_if_not_valid {
-    cray bos sessiontemplate describe "$1" > /dev/null 2>&1
+    bos_describe "$1" > /dev/null 2>&1
     if [[ $! -ne 0 ]]; then
         die "Error! $SRC is not a valid bos sessiontemplate."
     fi
 }
 
 function bos_exit_if_exists {
-    cray bos sessiontemplate describe "$1" > /dev/null 2>&1
+    bos_describe "$1" > /dev/null 2>&1
     if [[ $? -eq 0 ]]; then
         echo "'$1' already exists. If you really want to overwrite it, you need to delete it first"
         exit 1
@@ -118,10 +137,11 @@ function bos_clone {
     set -e
     tmpdir
     TMPFILE="$TMPDIR/bos_sessiontemplate.json"
-
-    cray bos sessiontemplate describe $SRC --format json > "$TMPFILE"
+    
+    bos_describe $SRC --format json > "$TMPFILE" 
 
     cray bos sessiontemplate create --name $DEST --file "$TMPFILE" --format json
+    set +e
 }
 
 function bos_update_template {
@@ -130,10 +150,10 @@ function bos_update_template {
     local VALUE="$3"
 
     set -e
-    cray bos sessiontemplate describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    bos_describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     json_set_field "$BOS_CONFIG_DIR/$TEMPLATE.json" "$KEY" "$VALUE"
     cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" --format json > /dev/null 2>&1
-    cray bos sessiontemplate describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    bos_describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     cat "$BOS_CONFIG_DIR/$TEMPLATE.json" | jq "$KEY" > /dev/null
     set +e
     return $?
@@ -149,7 +169,7 @@ function bos_edit {
     bos_exit_if_not_valid "$CONFIG"
 
     set -e
-    cray bos sessiontemplate describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json"
+    bos_describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json" 
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         rm -f "$BOS_CONFIG_DIR/$CONFIG.json"
@@ -191,10 +211,10 @@ function bos_boot {
         die "Failed to create bos session"
     fi
     BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
+    
 
 
-
-    # if booting more than one node,
+    # if booting more than one node, 
     if [[ "${#TARGET}" -ge 20 ]]; then
         LOGFILE="$BOOT_LOGS/$ACTION-$TEMPLATE.log"
     else
@@ -211,3 +231,4 @@ function bos_boot {
     echo "Boot Logs: '$LOGFILE'"
     echo
 }
+

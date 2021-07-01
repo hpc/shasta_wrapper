@@ -31,14 +31,14 @@ function cfs_job {
 
 function cfs_job_help {
     echo    "USAGE: $0 cfs job [action]"
-    echo    "DESC: control jobs launched by cfs"
+    echo    "DESC: control jobs launched by cfs" 
     echo    "ACTIONS:"
     echo -e "\tdelete [job] : delete the cfs"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tlog [job] : show logs for the given cfs job"
     echo -e "\tshow [job] : shows all info on a given cfs"
-
+    
     exit 1
 }
 
@@ -47,6 +47,10 @@ function refresh_cfs_jobs_raw {
         return
     fi
     CFS_JOBS_RAW=$(cray cfs sessions list --format json)
+
+    if [[ -z "#CFS_JOBS_RAW" ]]; then
+        die "failed to gedt cfs data"
+    fi
 }
 
 function cfs_job_list {

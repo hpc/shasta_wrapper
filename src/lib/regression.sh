@@ -1,5 +1,6 @@
 
 REG_FAILURES=0
+REG_FAILED_TESTS=( )
 REG_TESTS_RUN=0
 REG_TESTS=0
 
@@ -86,9 +87,9 @@ function regression_basic {
     echo "####### Secondary Functionality Checks"
     echo "#########################################"
     regression_bos
-    regression_bos_job
+    regression_bos_jobs
     regression_cfs
-    regression_cfs_job
+    regression_cfs_jobs
     regression_recipe
     regression_image
 }
@@ -116,13 +117,10 @@ function function_ok {
 
 function is {
     local TEST=$1
-    echo -n "$TEST..."
-    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
     if [[ "$2" -eq "$3" ]]; then
-        echo ok
+        reg_pass "$TEST"
     else
-        echo not ok
-        REG_FAILURES=$(( $REG_FAILURES + 1 ))
+        reg_fail "$TEST"
     fi
 }
 
@@ -131,14 +129,12 @@ function ok_stdout {
     local OUT="$2"
     shift
     shift
-    "$@" 2> /dev/null | grep -Pq "$OUT"
+    eval "$@" 2> /dev/null | grep -Pq "$OUT"
     if [[ $? -eq 0 ]]; then
-        echo "$TEST...ok"
+        reg_pass "$TEST"
     else
-        echo "$TEST...not ok"
-        REG_FAILURES=$(( $REG_FAILURES + 1 ))
+        reg_fail "$TEST"
     fi
-    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
 }
 
 function ok_exists {
@@ -147,12 +143,10 @@ function ok_exists {
     shift
 
     if [[ -e "$FILE" ]]; then
-        echo "$TEST...ok"
+        reg_pass "$TEST"
     else
-        echo "$TEST...not ok"
-        REG_FAILURES=$(( $REG_FAILURES + 1 ))
+        reg_fail "$TEST"
     fi
-    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
 }
 
 function ok {
@@ -160,12 +154,10 @@ function ok {
     shift
     "$@" > /dev/null 2>&1
     if [[ $? -eq 0 ]]; then
-        echo "$TEST...ok"
+        reg_pass "$TEST"
     else
-        echo "$TEST...not ok"
-        REG_FAILURES=$(( $REG_FAILURES + 1 ))
+        reg_fail "$TEST"
     fi
-    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
 }
 
 function not_ok {
@@ -173,16 +165,27 @@ function not_ok {
     shift
     "$@"  > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
-        echo "$TEST...ok"
+        reg_pass "$TEST"
     else
-        echo "$TEST...not ok"
-        REG_FAILURES=$(( $REG_FAILURES + 1 ))
+        reg_fail "$TEST"
     fi
-    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
 }
 
 function cmd_exists {
     ok "$1 command exists" command -v $1
+}
+
+function reg_pass {
+    TEST="$1"
+    echo "$TEST...ok"
+    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
+}
+
+function reg_fail {
+    echo "$TEST...not ok"
+    REG_FAILURES=$(( $REG_FAILURES + 1 ))
+    REG_TESTS_RUN=$(($REG_TESTS_RUN + 1))
+    REG_FAILED_TESTS+=( "$TEST" )
 }
 
 function regression_finalize {
@@ -198,8 +201,12 @@ function regression_finalize {
     fi
     echo "TESTS RAN:    $REG_TESTS_RUN"
     echo "TESTS FAILED: $REG_FAILURES"
-
+    
     if [[ $REG_FAILURES -ne 0 ]]; then
+        echo "FAILED TESTS:"
+        for TEST in "${REG_FAILED_TESTS[@]}"; do
+            echo -e "\t$TEST"
+        done
         exit 1
     fi
     exit 0

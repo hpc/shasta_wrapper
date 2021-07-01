@@ -48,7 +48,7 @@ function image_help {
     echo -e "\tconfigure [image id] [group name] [config name] : build a new image configuring it"
     echo -e "\tdelete [image id] : delete a image"
     echo -e "\tlist : list all images"
-
+    
     exit 1
 }
 
@@ -72,7 +72,7 @@ function refresh_images {
 
 function image_list {
     local id name created group
-    cluster_defaults_config
+    image_defaults
     refresh_images
     echo "CREATED                            ID                                     NAME(Mapped image for)"
     for id in "${!IMAGE_ID2NAME[@]}"; do
@@ -110,19 +110,19 @@ function image_build {
     local NEW_IMAGE_NAME="$4"
     local BOS_TEMPLATE="$5"
     local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID
-
+    
 
     if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
         echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
         exit 1
     fi
-
+    
 
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
-
+    
     cray cfs configurations describe "$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         die "'$CONFIG_NAME' is not a valid configuration."
@@ -146,7 +146,7 @@ function image_build {
     fi
     BARE_IMAGE_ID="$RETURN"
 
-
+    
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
     image_configure "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
@@ -157,7 +157,7 @@ function image_build {
     echo "[$GROUP_NAME] Deleting bare image, as it's no longer needed."
     image_delete "$BARE_IMAGE_ID" > /dev/null 2>&1
 
-
+    
     if [[ -n "$BOS_TEMPLATE" ]]; then
         image_map "$BOS_TEMPLATE" "$CONFIG_IMAGE_ID" "$GROUP_NAME"
     fi
@@ -190,7 +190,7 @@ function image_map {
     fi
     if [[ -n "$GROUP" ]]; then
         echo "[$GROUP] Successfully mapped '$BOS_TEMPLATE' to '$IMAGE_ID'"
-    else
+    else 
         echo "Successfully mapped '$BOS_TEMPLATE' to '$IMAGE_ID'"
     fi
     return 0
@@ -308,7 +308,7 @@ function image_logwatch {
         sed 's/,//g') )
 
     # init container logs
-    for cont in "${INIT_CONTAIN[@]}"; do
+    for cont in fetch-recipe wait-for-repos build-ca-rpm; do
         if [[ "$cont" != "build-image" && "$cont" != 'buildenv-sidecar' ]]; then
             echo
             echo
@@ -353,7 +353,7 @@ function image_configure {
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
-        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
+        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts" 
     fi
 
     cray cfs sessions delete "$SESSION_NAME" > /dev/null 2>&1
@@ -363,7 +363,7 @@ function image_configure {
         --configuration-name "$CONFIG_NAME" \
         --target-definition image \
         --target-group "$GROUP_NAME" "$IMAGE_ID" 2>&1
-
+ 
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] cfs session creation failed! See logs for details"
         die "[$GROUP_NAME] cfs session creation failed! See logs for details"
@@ -409,3 +409,4 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images "$artifact" | grep -P '\S'
     done
 }
+

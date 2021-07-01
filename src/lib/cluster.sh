@@ -20,28 +20,46 @@ function cluster_help {
     echo    "DESC: shows general cluster information. Such as the node groups there are and what configurations, bos sessiontemplates, and images are used for each. Groups are defined in /etc/bos_defaults.conf linking each to a bos sessiontemplate."
     echo    "ACTIONS:"
     echo -e "\tvalidate : Check that current defaults and their bos configurations actually point to things that exist."
-
+    
     exit 1
 }
 
 
 
 function cluster_defaults_config {
-    local IMAGE_RAW BOS_RAW ALL_BOS_RAW
+    local IMAGE_RAW BOS
     if [[ -n "${!BOS_DEFAULT[@]}" ]]; then
         return 0
     fi
     source /etc/cluster_defaults.conf
-    ALL_BOS_RAW=$(cray bos sessiontemplate list --format json)
+    refresh_bos_raw
     for group in "${!BOS_DEFAULT[@]}"; do
-        BOS_RAW=$(echo "$ALL_BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
+        BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
 
-        if [[ -z "$BOS_RAW" ]]; then
+        if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
             die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
         fi
 
-        CUR_IMAGE_CONFIG[$group]=$(echo "$BOS_RAW" | jq '.cfs.configuration' | sed 's/"//g')
-        CUR_IMAGE_ETAG[$group]=$(echo "$BOS_RAW" | jq '.boot_sets.compute.etag' | sed 's/"//g')
+        CUR_IMAGE_CONFIG[$group]=$(echo "$BOS" | jq '.cfs.configuration' | sed 's/"//g')
+        CUR_IMAGE_ETAG[$group]=$(echo "$BOS" | jq '.boot_sets.compute.etag' | sed 's/"//g')
+    done
+    for group in "${!CONFIG_DEFAULT[@]}"; do
+        CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
+    done
+}
+
+function image_defaults {
+    local IMAGE_RAW BOS
+    if [[ -n "${!CUR_IMAGE_NAME[@]}" ]]; then
+        return 0
+    fi
+    cluster_defaults_config
+    for group in "${!BOS_DEFAULT[@]}"; do
+        BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
+
+        if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
+            die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+        fi
 
         IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
         if [[ -z "$IMAGE_RAW" ]]; then
@@ -52,9 +70,6 @@ function cluster_defaults_config {
             CUR_IMAGE_NAME[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.name)\"" | sed 's/"//g')
             CUR_IMAGE_ID[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.id)\"" | sed 's/"//g')
         fi
-    done
-    for group in "${!CONFIG_DEFAULT[@]}"; do
-        CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
     done
 }
 
@@ -82,3 +97,4 @@ function cluster_validate {
         echo "ok"
     done
 }
+

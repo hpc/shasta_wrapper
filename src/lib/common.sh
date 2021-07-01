@@ -67,8 +67,8 @@ function cmd_wait_output {
 }
 
 function verbose_cmd {
-    echo
-    echo
+    echo 
+    echo 
     echo "# $@"
     eval "$@"
     return $?
@@ -102,3 +102,4 @@ function json_set_field {
     cat $FILE | jq "$FIELD" > /dev/null || return 1
     return 0
 }
+

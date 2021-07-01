@@ -32,13 +32,13 @@ function bos_job {
 
 function bos_job_help {
     echo    "USAGE: $0 bos job [action]"
-    echo    "DESC: control jobs launched by bos"
+    echo    "DESC: control jobs launched by bos" 
     echo    "ACTIONS:"
     echo -e "\tdelete [job] : delete the bos"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist : list bos jobs"
     echo -e "\tshow [job] : shows all info on a given bos"
-
+    
     exit 1
 }
 
@@ -49,6 +49,7 @@ function refresh_bos_jobs {
     BOS_JOBS=( $(cray bos session list --format json |\
         jq '.[]' |\
         sed 's/"//g') )
+    return $?
 }
 
 function refresh_bos_jobs_raw {
@@ -61,6 +62,7 @@ function refresh_bos_jobs_raw {
     BOS_JOBS_RAW=$(for JOB in "${BOS_JOBS[@]}"; do
         cray bos session describe $JOB --format json
     done)
+    return $?
 }
 
 
@@ -101,11 +103,11 @@ function bos_job_log {
     fi
 
     KUBE_JOB_ID=$(bos_job_describe "$JOB" | grep boa_job_name | awk '{print $3}' | sed 's/"//g')
-
+    
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to find bos job $JOB"
     fi
-
+ 
     cd /tmp
     cmd_wait_output "Created pod:" kubectl describe job -n services "$KUBE_JOB_ID"
     POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
@@ -121,6 +123,6 @@ function bos_job_log {
     echo "################################################"
     echo "#### END INFO"
     echo "################################################"
-
+   
     kubectl logs -n services "$POD" -c boa -f
 }

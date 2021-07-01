@@ -4,6 +4,10 @@ VERSION="%VERSION%-%RELEASE%"
 if [[ -z "$SHASTACMD_LIBDIR" ]]; then
     SHASTACMD_LIBDIR="%LIBDIR%"
 fi
+if [[ ! -d "$SHASTACMD_LIBDIR" ]]; then
+    SHASTACMD_LIBDIR="$HOME/lib"
+fi
+
 for file in $SHASTACMD_LIBDIR/*; do
     source $file
 done
@@ -43,7 +47,7 @@ function main {
             shift
             recipe "$@"
             ;;
-	regression*)
+        regression*)
             shift
             regression "$@"
             ;;

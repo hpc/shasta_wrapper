@@ -59,7 +59,7 @@ function bos_help {
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
- 
+
     exit 1
 }
 
@@ -109,8 +109,8 @@ function bos_delete {
 
 function bos_exit_if_not_valid {
     bos_describe "$1" > /dev/null 2>&1
-    if [[ $! -ne 0 ]]; then
-        die "Error! $SRC is not a valid bos sessiontemplate."
+    if [[ $? -ne 0 ]]; then
+        die "Error! $1 is not a valid bos sessiontemplate."
     fi
 }
 
@@ -137,8 +137,8 @@ function bos_clone {
     set -e
     tmpdir
     TMPFILE="$TMPDIR/bos_sessiontemplate.json"
-    
-    bos_describe $SRC --format json > "$TMPFILE" 
+
+    bos_describe $SRC --format json > "$TMPFILE"
 
     cray bos sessiontemplate create --name $DEST --file "$TMPFILE" --format json
     set +e
@@ -169,7 +169,7 @@ function bos_edit {
     bos_exit_if_not_valid "$CONFIG"
 
     set -e
-    bos_describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json" 
+    bos_describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json"
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         rm -f "$BOS_CONFIG_DIR/$CONFIG.json"
@@ -205,16 +205,16 @@ function bos_boot {
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
-    bos_exit_if_not_valid "$CONFIG"
+    bos_exit_if_not_valid "$TEMPLATE"
     KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to create bos session"
     fi
     BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
-    
 
 
-    # if booting more than one node, 
+
+    # if booting more than one node,
     if [[ "${#TARGET}" -ge 20 ]]; then
         LOGFILE="$BOOT_LOGS/$ACTION-$TEMPLATE.log"
     else
@@ -231,4 +231,3 @@ function bos_boot {
     echo "Boot Logs: '$LOGFILE'"
     echo
 }
-

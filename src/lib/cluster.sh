@@ -58,12 +58,12 @@ function image_defaults {
         BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
 
         if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
-            die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+            echo "Warning: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
         fi
 
         IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
         if [[ -z "$IMAGE_RAW" ]]; then
-            echo "Error. Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
+            echo "Warning: Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
             CUR_IMAGE_NAME[$group]="Invalid"
             CUR_IMAGE_ID[$group]="Invalid"
         else

@@ -13,7 +13,6 @@ for file in $SHASTACMD_LIBDIR/*; do
 done
 
 function main {
-    export IMS_PUBLIC_KEY_ID=f25c56cb-fb05-498c-9427-582e0098fb9f
     case $1 in
         cfs*)
             shift

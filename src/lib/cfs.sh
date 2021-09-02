@@ -72,7 +72,7 @@ function cfs_help {
 function cfs_list {
     local CONFIG CONFIGS group
     cluster_defaults_config
-    echo "NAME(default cfs for)"
+    echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
     CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
     for CONFIG in "${CONFIGS[@]}"; do
         echo -n "$CONFIG"
@@ -169,36 +169,30 @@ function cfs_apply {
 
     local CONFIG=$1
     shift
-    local NODES=( "$@" )
+    local NODES=( "$1" )
     local NAME=cfs`date +%s`
     local JOB POD TRIED MAX_TRIES RET NODE_STRING ARGS 
 
     if [[ -z "$CONFIG" ]]; then
         echo "usage: $0 cfs apply [configuration name] [nodes|groups]"
-        echo "cray cfs sessions create args(note --name and --cfsuration-name are defined for you):"
-        cray cfs sessions create --help
         exit 1
     fi
+    refresh_ansible_groups
 
     SPLIT=( $(echo $NODES | sed 's/,/ /g') )
     for node in "${SPLIT[@]}"; do
+        if [ -z "${NODE2GROUP[$node]}" ]; then
+            die "Can't find a group for node '$node'"
+        fi
+        GROUP=${NODE2GROUP[$node]}
         cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
         cray cfs components update --enabled true "$node" > /dev/null 2>&1
     done
 
-    ARGS=""
-    if [[ -n "${NODES[0]}" ]]; then
-        NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
-        ARGS="--ansible-limit '$NODES'"
-    fi
-    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG $ARGS
+    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES" --target-group "$GROUP" "$NODES" --target-definition=spec
     sleep 1
     cfs_log_job "$NAME"
 
-
-    echo "Waiting for ansible worker pod to launch..."
-
-    cfs_logwatch "$POD"
 
     cray cfs sessions delete "$NAME"
 }
@@ -380,3 +374,4 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
+

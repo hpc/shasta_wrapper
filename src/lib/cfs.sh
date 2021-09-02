@@ -2,6 +2,8 @@
 
 declare -A CFS_BRANCH CFS_URL CFS_BRANCH_DEFAULT
 CONFIG_DIR="/root/templates/cfs_configurations/"
+GIT_USER=""
+GIT_PASSWD=""
 
 function cfs {
     case "$1" in
@@ -342,19 +344,34 @@ function cfs_update {
     ) 42>/tmp/lock
 }
 
+function get_git_password {
+    if [[ -n "$GIT_PASSWD" ]]; then
+        return
+    fi
+    GIT_USER=crayvcs
+    GIT_PASSWD=$(kubectl get secret -n services vcs-user-credentials --template={{.data.vcs_password}} | base64 --decode)
+    if [[ -z "$GIT_PASSWD" ]]; then
+        die "Failed to get git password"
+    fi
+}
+
 function cfs_update_git {
     local FILE="$1"
     local LAYER="$2"
     local CONFIG="$3"
+    
+
+    get_git_password
 
     set -e
     LAYER_URL=$(cat "$FILE" | jq ".layers[$LAYER].cloneUrl" | sed 's/"//g')
     if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
         LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
+        URL=$(echo "$LAYER_URL" | sed "s|https://|https://$GIT_USER:$GIT_PASSWD@|g"| sed "s|http://|http://$GIT_USER:$GIT_PASSWD@|g")
  
         echo "cloning $LAYER_URL"
         cd "$TMPDIR"
-        git clone "$LAYER_URL" "$TMPDIR/$LAYER"
+        git clone "$URL" "$TMPDIR/$LAYER"
         cd "$TMPDIR/$LAYER"
         git checkout "${CFS_BRANCH_DEFAULT[$LAYER_URL]}"
                 
@@ -374,4 +391,3 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
-

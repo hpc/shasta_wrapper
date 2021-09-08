@@ -358,13 +358,25 @@ function image_configure {
 
     cray cfs sessions delete "$SESSION_NAME" > /dev/null 2>&1
 
-    verbose_cmd cray cfs sessions create \
-        --name "$SESSION_NAME" \
-        --configuration-name "$CONFIG_NAME" \
-        --target-definition image \
-        --target-group "$GROUP_NAME" "$IMAGE_ID" 2>&1
- 
-    if [[ $? -ne 0 ]]; then
+    RETRIES=20
+    RET=1
+    TRIES=0
+    while [[ $RET -ne 0 && $RETRIES -gt $TRIES ]]; do
+        if [[ $TRIES -ne 0 ]]; then
+            echo
+            echo "failed... trying again($TRIES/$RETRIES)"
+        fi
+    	verbose_cmd cray cfs sessions create \
+    	    --name "$SESSION_NAME" \
+    	    --configuration-name "$CONFIG_NAME" \
+    	    --target-definition image \
+    	    --target-group "$GROUP_NAME" "$IMAGE_ID" 2>&1
+        RET=$?
+	sleep 2
+        TRIES=$(($TRIES + 1))
+    done
+
+    if [[ $RET -ne 0 ]]; then
         echo "[$GROUP_NAME] cfs session creation failed! See logs for details"
         die "[$GROUP_NAME] cfs session creation failed! See logs for details"
     fi

@@ -216,6 +216,9 @@ function image_build_bare {
     if [[ -z "$NEW_IMAGE_NAME" ]]; then
         NEW_IMAGE_NAME="img_$RECIPE_NAME"
     fi
+    if [[ -z "$IMS_PUBLIC_KEY_ID" ]]; then
+	    die "[$GROUP_NAME] Error! IMS_PUBLIC_KEY_ID is not defined in '/etc/cluster_defaults.conf'"
+    fi
 
     set -e
     echo "cray ims jobs create \

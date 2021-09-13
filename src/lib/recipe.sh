@@ -36,7 +36,8 @@ function recipe_help {
     echo    "DESC: Recipes used to build images from. See 'cray ims recipes' for more detailed options"
     echo    "ACTIONS:"
     echo -e "\tclone [cur recipe id] [new recipe name] : create a new recipe from existing one"
-    echo -e "\tdelete [recipe id]: delete a recipe"
+    echo -e "\tdelete [recipe id] : delete a recipe"
+    echo -e "\tget [recipe id] : create a new recipe from existing one"
     echo -e "\tlist : list all recipes"
 
     exit 1

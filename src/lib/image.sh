@@ -6,9 +6,13 @@ IMAGE_LOGDIR="/var/log/image/"`date '+%Y%m%d-%H%M%S'`
 
 function image {
     case "$1" in
-        bu*)
+        build)
             shift
             image_build "$@"
+            ;;
+        build_bare)
+            shift
+            image_build_bare "$@"
             ;;
         co*)
             shift
@@ -44,10 +48,13 @@ function image_help {
     echo    "USAGE: $0 image [action]"
     echo    "DESC: The images used by the system to boot nodes. To set an image to be used at boot,  See 'cray cfs configurations' for more detailed options."
     echo    "ACTIONS:"
-    echo -e "\tbuild [recipe id] [group] [config] <image name>: build a new image from the given recipe"
+    echo -e "\tbuild [recipe id] [group] [config] <image name>: build a new bare image from the given recipe"
+    echo -e "\tbuild_bare [recipe id] [image name]: build a new bare image from the given recipe"
     echo -e "\tconfigure [image id] [group name] [config name] : build a new image configuring it"
     echo -e "\tdelete [image id] : delete a image"
+    echo -e "\tdescribe [image id] : show image information"
     echo -e "\tlist : list all images"
+    echo -e "\tmap [bos template] [image id] : show image information"
     
     exit 1
 }
@@ -116,6 +123,7 @@ function image_build {
         echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
         exit 1
     fi
+    cluster_defaults_config
     
 
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
@@ -203,6 +211,11 @@ function image_build_bare {
     local JOB_RAW JOB_ID IMS_JOB_ID POD IMAGE_ID
 
     if [[ -z "$RECIPE_ID" ]]; then
+        echo "usage: $0 image build_bare [recipe id] [image name]"
+        exit 1
+    fi
+
+    if [[ -z "$RECIPE_ID" ]]; then
         echo "[$GROUP_NAME] Error. recipe id must be provided!"
         die "[$GROUP_NAME] Error. recipe id must be provided!"
     fi
@@ -216,6 +229,7 @@ function image_build_bare {
     if [[ -z "$NEW_IMAGE_NAME" ]]; then
         NEW_IMAGE_NAME="img_$RECIPE_NAME"
     fi
+    cluster_defaults_config
     if [[ -z "$IMS_PUBLIC_KEY_ID" ]]; then
 	    die "[$GROUP_NAME] Error! IMS_PUBLIC_KEY_ID is not defined in '/etc/cluster_defaults.conf'"
     fi
@@ -424,4 +438,3 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images "$artifact" | grep -P '\S'
     done
 }
-

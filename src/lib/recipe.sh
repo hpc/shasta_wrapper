@@ -9,6 +9,10 @@ function recipe {
             shift
             recipe_clone "$@"
             ;;
+        create)
+            shift
+            recipe_create "$@"
+            ;;
         get)
             shift
             recipe_get "$@"
@@ -21,10 +25,10 @@ function recipe {
             shift
             recipe_delete "$@"
             ;;
-        edit)
-            shift
-            recipe_edit "$@"
-            ;;
+        #edit)
+        #    shift
+        #    recipe_edit "$@"
+        #    ;;
         *)
             recipe_help
             ;;
@@ -36,6 +40,7 @@ function recipe_help {
     echo    "DESC: Recipes used to build images from. See 'cray ims recipes' for more detailed options"
     echo    "ACTIONS:"
     echo -e "\tclone [cur recipe id] [new recipe name] : create a new recipe from existing one"
+    echo -e "\tcreate [recipe name] [tar.gz containing recipe data] : create a new recipe"
     echo -e "\tdelete [recipe id] : delete a recipe"
     echo -e "\tget [recipe id] : create a new recipe from existing one"
     echo -e "\tlist : list all recipes"
@@ -82,7 +87,12 @@ function recipe_list {
 }
 
 function recipe_delete {
-     verbose_cmd cray ims recipes delete "$@"
+    local RECIPE="$1"
+    if [[ -z "$RECIPE" ]]; then
+        echo "usage: $0 recipe delete <recipe id>"
+        exit 1
+    fi
+    verbose_cmd cray ims recipes delete "$RECIPE"
 }
 
 function recipe_get {
@@ -131,9 +141,10 @@ function recipe_clone {
     RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
     ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
     S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
-    recipe_get
+
+    verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
     mkdir -p $RECIPE_NAME
-    tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
+    verbose_cmd tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
     rm -f $ARTIFACT_FILE
 
     cd $RECIPE_NAME
@@ -144,6 +155,7 @@ function recipe_clone {
     cd -
 
 
+    echo "# cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json"
     NEW_RECIPE_ID=$(cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json | jq '.id' | sed 's/"//g')
 
 
@@ -193,3 +205,23 @@ function recipe_edit {
     set +e
     set +x
 }
+
+function recipe_create {
+    local NAME="$1"
+    local FILE="$2"
+    local NEW_RECIPE_ID
+    ARTIFACT_FILE="$NAME.tar.gz"
+
+    if [[ -z "$FILE" ]]; then
+        echo "Usage: $0 recipe create [recipe name] [tarball containing recipe data]"
+	exit 1
+    fi
+
+
+    NEW_RECIPE_ID=$(cray ims recipes create --name "$NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json | jq '.id' | sed 's/"//g')
+    verbose_cmd cray artifacts create ims recipes/$RECIPE_ID/$ARTIFACT_FILE $FILE
+    verbose_cmd cray ims recipes update $NEW_RECIPE_ID \
+        --link-type s3 \
+        --link-path s3://ims/recipes/$RECIPE_ID/$ARTIFACT_FILE
+}
+

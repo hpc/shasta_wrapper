@@ -342,8 +342,7 @@ function image_logwatch {
     echo "#################################################"
     echo "### kiwi logs"
     echo "#################################################"
-    cmd_wait kubectl logs -n ims $POD_ID -c build-image
-    sleep 4
+    cmd_wait kubectl exec -ti "$POD_ID" -n ims -c build-image -- ls /mnt/image/kiwi.log 2>&1
     verbose_cmd kubectl exec -ti "$POD_ID" -n ims -c build-image -- tail -f /mnt/image/kiwi.log 2>&1
     echo "#################################################"
     echo "you may get more info from \`kubectl logs -n ims -f $POD -c build-image\`"

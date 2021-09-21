@@ -142,6 +142,13 @@ function recipe_clone {
     ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
     S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
 
+    tmpdir
+    TMPDIR="$RETURN"
+    if [[ -z "$TMPDIR" ]]; then
+        die "Error! Could not get tmpdir"
+    fi
+    cd "$TMPDIR"
+
     verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
     mkdir -p $RECIPE_NAME
     verbose_cmd tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
@@ -151,18 +158,20 @@ function recipe_clone {
     echo "image ready for modification. 'exit' when you are done"
     bash
 
+
     verbose_cmd tar cvfz ../$NEW_ARTIFACT_FILE .
-    cd -
 
 
     echo "# cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json"
     NEW_RECIPE_ID=$(cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json | jq '.id' | sed 's/"//g')
 
 
-    verbose_cmd cray artifacts create ims recipes/$NEW_RECIPE_ID/$NEW_ARTIFACT_FILE $NEW_ARTIFACT_FILE
+    verbose_cmd cray artifacts create ims recipes/$NEW_RECIPE_ID/$NEW_ARTIFACT_FILE ../$NEW_ARTIFACT_FILE
     verbose_cmd cray ims recipes update $NEW_RECIPE_ID \
         --link-type s3 \
         --link-path s3://ims/recipes/$NEW_RECIPE_ID/$NEW_ARTIFACT_FILE
+    cd -
+    rm -rf "$TMPDIR"
     set +e
     set +x
 }

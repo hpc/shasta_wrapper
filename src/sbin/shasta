@@ -30,6 +30,10 @@ function main {
             shift
             bos "$@"
             ;;
+        _edit_file)
+            shift
+            edit_file_nolock "$@"
+            ;;
         gr*)
             shift
             group "$@"

@@ -67,14 +67,21 @@ function cmd_wait_output {
 }
 
 function verbose_cmd {
-    echo 
-    echo 
+    echo
+    echo
     echo "# $@"
     eval "$@"
     return $?
 }
 
 function edit_file {
+    local FILE AFTER BEFORE
+    local FILE="$1"
+
+    flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE" || die "Failed to get lock on $FILE. Someone else is modifying it"
+}
+
+function edit_file_nolock {
     local FILE AFTER BEFORE
     local FILE="$1"
 
@@ -102,4 +109,3 @@ function json_set_field {
     cat $FILE | jq "$FIELD" > /dev/null || return 1
     return 0
 }
-

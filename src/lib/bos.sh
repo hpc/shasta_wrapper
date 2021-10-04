@@ -197,8 +197,20 @@ function bos_boot {
     cluster_defaults_config
     SPLIT=( $(echo $TARGET | sed 's/,/ /g') )
     for node in "${SPLIT[@]}"; do
-        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
-        cray cfs components update --enabled true "$node" > /dev/null 2>&1
+        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1 &
+        cray cfs components update --enabled true "$node" > /dev/null 2>&1 &
+    done
+    i=0
+    while [[ "$i" -lt "${#SPLIT[@]}" ]]; do
+        JOBS=$(jobs -r | wc -l)
+        COUNT="${#SPLIT[@]}"
+        ((i=$COUNT - $JOBS /2))
+        echo -en "\rUpdating node state: $i/${#SPLIT[@]}"
+        sleep 2
+    done
+    for node in "${SPLIT[@]}"; do
+        wait
+        wait
     done
 
     if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then

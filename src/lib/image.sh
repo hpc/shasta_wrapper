@@ -18,6 +18,10 @@ function image {
             shift
             image_configure "$@"
             ;;
+        job*)
+            shift
+            image_job "$@"
+            ;;
         li*)
             shift
             image_list "$@"
@@ -55,7 +59,7 @@ function image_help {
     echo -e "\tdescribe [image id] : show image information"
     echo -e "\tlist : list all images"
     echo -e "\tmap [bos template] [image id] : show image information"
-    
+
     exit 1
 }
 
@@ -117,20 +121,20 @@ function image_build {
     local NEW_IMAGE_NAME="$4"
     local BOS_TEMPLATE="$5"
     local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID
-    
+
 
     if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
         echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
         exit 1
     fi
     cluster_defaults_config
-    
+
 
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
-    
+
     cray cfs configurations describe "$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         die "'$CONFIG_NAME' is not a valid configuration."
@@ -154,7 +158,7 @@ function image_build {
     fi
     BARE_IMAGE_ID="$RETURN"
 
-    
+
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
     image_configure "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
@@ -165,7 +169,7 @@ function image_build {
     echo "[$GROUP_NAME] Deleting bare image, as it's no longer needed."
     image_delete "$BARE_IMAGE_ID" > /dev/null 2>&1
 
-    
+
     if [[ -n "$BOS_TEMPLATE" ]]; then
         image_map "$BOS_TEMPLATE" "$CONFIG_IMAGE_ID" "$GROUP_NAME"
     fi
@@ -198,7 +202,7 @@ function image_map {
     fi
     if [[ -n "$GROUP" ]]; then
         echo "[$GROUP] Successfully mapped '$BOS_TEMPLATE' to '$IMAGE_ID'"
-    else 
+    else
         echo "Successfully mapped '$BOS_TEMPLATE' to '$IMAGE_ID'"
     fi
     return 0
@@ -369,7 +373,7 @@ function image_configure {
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
-        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts" 
+        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
 
     cray cfs sessions delete "$SESSION_NAME" > /dev/null 2>&1

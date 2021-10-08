@@ -212,6 +212,7 @@ function bos_boot {
         wait
         wait
     done
+    echo
 
     if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2

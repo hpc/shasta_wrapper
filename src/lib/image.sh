@@ -360,7 +360,8 @@ function image_configure {
     local IMAGE_ID=$1
     local GROUP_NAME=$2
     local CONFIG_NAME=$3
-    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID
+    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP
+    cluster_defaults_config
 
     local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
     SESSION_NAME="$GROUP_SANITIZED"`date +%M`
@@ -375,6 +376,13 @@ function image_configure {
         echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
+    echo "$GROUP_NAME: ${IMAGE_GROUPS[$GROUP_NAME]}"
+    if [[ -n "${IMAGE_GROUPS[$GROUP_NAME]}" ]]; then
+        IMAGE_GROUP="${IMAGE_GROUPS[$GROUP_NAME]}"
+    else
+        IMAGE_GROUP="$GROUP_NAME"
+    fi
+
 
     cray cfs sessions delete "$SESSION_NAME" > /dev/null 2>&1
 
@@ -390,7 +398,7 @@ function image_configure {
     	    --name "$SESSION_NAME" \
     	    --configuration-name "$CONFIG_NAME" \
     	    --target-definition image \
-    	    --target-group "$GROUP_NAME" "$IMAGE_ID" 2>&1
+    	    --target-group "$IMAGE_GROUP" "$IMAGE_ID" 2>&1
         RET=$?
 	sleep 2
         TRIES=$(($TRIES + 1))

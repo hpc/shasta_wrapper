@@ -35,7 +35,7 @@ function cfs_job_help {
     echo    "ACTIONS:"
     echo -e "\tdelete [job] : delete the cfs"
     echo -e "\tdescribe [job] : (same as show)"
-    echo -e "\tlist : list all ansible configurations"
+    echo -e "\tlist <-l>: list all ansible configurations"
     echo -e "\tlog [job] : show logs for the given cfs job"
     echo -e "\tshow [job] : shows all info on a given cfs"
 
@@ -55,11 +55,24 @@ function refresh_cfs_jobs_raw {
 
 function cfs_job_list {
     refresh_cfs_jobs_raw
-    printf "${COLOR_BOLD}%19s   %44s   %20s   %8s$COLOR_RESET\n" DATE ID CONFIG STATE
-    printf "%19s   %44s   %20s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
-        jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)"' |\
-        sed 's/"//g' |\
-        sort)
+
+    if [[ "$1" == '-l' ]]; then
+        printf "${COLOR_BOLD}%19s   %44s   %20s   %8s %s$COLOR_RESET\n" DATE ID CONFIG STATE NODES
+        printf "%19s   %44s   %20s   %8s %s\n" $(echo "$CFS_JOBS_RAW" |\
+            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)   \(.ansible.limit)"' |\
+            sed 's/"//g' |\
+            sort)
+    elif [[ -z "$1" ]]; then
+        printf "${COLOR_BOLD}%19s   %44s   %20s   %8s$COLOR_RESET\n" DATE ID CONFIG STATE
+        printf "%19s   %44s   %20s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
+            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)"' |\
+            sed 's/"//g' |\
+            sort)
+    else
+        echo "Usage: $0 cfs job list <options>"
+	echo "Options:"
+	echo "\t-l : long listing (includes nodes being run on)"
+    fi
 }
 
 function cfs_job_describe {

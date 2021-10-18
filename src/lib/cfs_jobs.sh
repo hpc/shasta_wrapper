@@ -31,14 +31,14 @@ function cfs_job {
 
 function cfs_job_help {
     echo    "USAGE: $0 cfs job [action]"
-    echo    "DESC: control jobs launched by cfs" 
+    echo    "DESC: control jobs launched by cfs"
     echo    "ACTIONS:"
     echo -e "\tdelete [job] : delete the cfs"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tlog [job] : show logs for the given cfs job"
     echo -e "\tshow [job] : shows all info on a given cfs"
-    
+
     exit 1
 }
 
@@ -55,9 +55,9 @@ function refresh_cfs_jobs_raw {
 
 function cfs_job_list {
     refresh_cfs_jobs_raw
-    printf "${COLOR_BOLD}%19s   %44s   %8s$COLOR_RESET\n" DATE ID STATE
-    printf "%19s   %44s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
-        jq '.[] | "\(.status.session.startTime)   \(.name)   \(.status.session.status)"' |\
+    printf "${COLOR_BOLD}%19s   %44s   %20s   %8s$COLOR_RESET\n" DATE ID CONFIG STATE
+    printf "%19s   %44s   %20s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
+        jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)"' |\
         sed 's/"//g' |\
         sort)
 }

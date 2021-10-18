@@ -76,7 +76,7 @@ function bos_job_list {
         for JOB in "${BOS_JOBS[@]}"; do
             echo "$JOB"
         done
-    else
+    elif [[ -z "$1" ]]; then
         printf "${COLOR_BOLD}%26s   %40s   %30s    %10s$COLOR_RESET\n" Started ID Template Complete
         for JOB in "${BOS_JOBS[@]}"; do
             local RET=1
@@ -88,6 +88,10 @@ function bos_job_list {
                 RET=$?
             done
         done | sort
+    else
+	echo "Usage: $0 bos job list <options>"
+	echo "Options:"
+	echo "\t-s: short listing (just list ids). This is much faster but less informative"
     fi
 }
 

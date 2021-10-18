@@ -32,13 +32,13 @@ function bos_job {
 
 function bos_job_help {
     echo    "USAGE: $0 bos job [action]"
-    echo    "DESC: control jobs launched by bos" 
+    echo    "DESC: control jobs launched by bos"
     echo    "ACTIONS:"
     echo -e "\tdelete [job] : delete the bos"
     echo -e "\tdescribe [job] : (same as show)"
-    echo -e "\tlist : list bos jobs"
+    echo -e "\tlist <-s> : list bos jobs"
     echo -e "\tshow [job] : shows all info on a given bos"
-    
+
     exit 1
 }
 
@@ -46,10 +46,13 @@ function refresh_bos_jobs {
     if [[ -n "${BOS_JOBS[0]}" && "$1" != "--force" ]]; then
         return
     fi
-    BOS_JOBS=( $(cray bos session list --format json |\
-        jq '.[]' |\
-        sed 's/"//g') )
-    return $?
+    local RET=1
+    while [[ "$RET" -ne 0 ]]; do
+        BOS_JOBS=( $(cray bos session list --format json |\
+            jq '.[]' |\
+            sed 's/"//g') )
+        RET=$?
+    done
 }
 
 function refresh_bos_jobs_raw {
@@ -69,9 +72,23 @@ function refresh_bos_jobs_raw {
 function bos_job_list {
     local JOB
     refresh_bos_jobs
-    for JOB in "${BOS_JOBS[@]}"; do
-        echo "$JOB"
-    done
+    if [[ "$1" == '-s' ]]; then
+        for JOB in "${BOS_JOBS[@]}"; do
+            echo "$JOB"
+        done
+    else
+        printf "${COLOR_BOLD}%26s   %40s   %30s    %10s$COLOR_RESET\n" Started ID Template Complete
+        for JOB in "${BOS_JOBS[@]}"; do
+            local RET=1
+            while [[ "$RET" -ne 0 ]]; do
+                printf "%10s %15s   %40s   %30s    %10s\n" \
+                  `cray bos session describe "$JOB" --format json 2> /dev/null \
+                  | jq ". | \"\\(.start_time)   $JOB   \\(.templateUuid)   \\(.complete)\"" \
+                  | sed 's/"//g'`
+                RET=$?
+            done
+        done | sort
+    fi
 }
 
 function bos_job_describe {
@@ -103,11 +120,11 @@ function bos_job_log {
     fi
 
     KUBE_JOB_ID=$(bos_job_describe "$JOB" | grep boa_job_name | awk '{print $3}' | sed 's/"//g')
-    
+
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to find bos job $JOB"
     fi
- 
+
     cd /tmp
     cmd_wait_output "Created pod:" kubectl describe job -n services "$KUBE_JOB_ID"
     POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
@@ -123,6 +140,6 @@ function bos_job_log {
     echo "################################################"
     echo "#### END INFO"
     echo "################################################"
-   
+
     kubectl logs -n services "$POD" -c boa -f
 }

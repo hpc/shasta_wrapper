@@ -91,7 +91,7 @@ function bos_job_list {
     else
 	echo "Usage: $0 bos job list <options>"
 	echo "Options:"
-	echo "\t-s: short listing (just list ids). This is much faster but less informative"
+	echo -e "\t-s: short listing (just list ids). This is much faster but less informative"
     fi
 }
 

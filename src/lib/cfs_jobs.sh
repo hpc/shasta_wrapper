@@ -71,7 +71,7 @@ function cfs_job_list {
     else
         echo "Usage: $0 cfs job list <options>"
 	echo "Options:"
-	echo "\t-l : long listing (includes nodes being run on)"
+	echo -e "\t-l : long listing (includes nodes being run on)"
     fi
 }
 

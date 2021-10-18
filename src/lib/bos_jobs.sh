@@ -36,7 +36,7 @@ function bos_job_help {
     echo    "ACTIONS:"
     echo -e "\tdelete [job] : delete the bos"
     echo -e "\tdescribe [job] : (same as show)"
-    echo -e "\tlist : list bos jobs"
+    echo -e "\tlist <-s> : list bos jobs"
     echo -e "\tshow [job] : shows all info on a given bos"
 
     exit 1

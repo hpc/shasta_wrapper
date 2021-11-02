@@ -115,16 +115,50 @@ function image_delete {
 }
 
 function image_build {
-    local RECIPE_ID="$1"
-    local GROUP_NAME="$2"
-    local CONFIG_NAME=$3
-    local NEW_IMAGE_NAME="$4"
-    local BOS_TEMPLATE="$5"
-    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID
+    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE
+    OPTIND=1
+    while getopts "c:g:i:m:r:t:" OPTION ; do
+        case "$OPTION" in
+            c) CONFIG_NAME="$OPTARG"; shift ;;
+            g) GROUP_NAME="$OPTARG"; shift ;;
+            i) NEW_IMAGE_NAME="$OPTARG"; shift ;;
+            m) BOS_TEMPLATE="$OPTARG"; shift ;;
+            r) RECIPE_ID="$OPTARG"; shift ;;
+            t) CONFIG_TAG="$OPTARG"; shift ;;
+            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
 
+    if [[ -z "$RECIPE_ID" ]]; then
+        RECIPE_ID="$1"
+        shift
+    fi
+    if [[ -z "$GROUP_NAME" ]]; then
+        GROUP_NAME="$1"
+        shift
+    fi
+    if [[ -z "$CONFIG_NAME" ]]; then
+        CONFIG_NAME="$1"
+        shift
+    fi
+    if [[ -z "$NEW_IMAGE_NAME" ]]; then
+        NEW_IMAGE_NAME="$1"
+        shift
+    fi
+    if [[ -z "$BOS_TEMPLATE" ]]; then
+        BOS_TEMPLATE="$1"
+        shift
+    fi
 
     if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
-        echo "USAGE: $0 image build [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
+        echo "USAGE: $0 image build <OPTIONS> [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
+        echo "OPTIONS:"
+        echo -e "\t -c <cfs config> - Configure the image with this cfs configuration"
+        echo -e "\t -i <image name> - Base name to use for the created image"
+        echo -e "\t -m <bos template> - Map the final built image to this bos template"
+        echo -e "\t -r <recipe id> - Recipe id to build the image from"
+        echo -e "\t -t <config tag> - name to use for the applied configuration. This will show on the end of the configured image name"
         exit 1
     fi
     cluster_defaults_config
@@ -160,7 +194,7 @@ function image_build {
 
 
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
-    image_configure "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+    image_configure -t "$CONFIG_TAG" "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
         die "[$GROUP_NAME] configure image failed... Not continuing"
     fi
@@ -357,17 +391,32 @@ function image_logwatch {
 }
 
 function image_configure {
+    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP OPTIND
+    OPTIND=1
+    while getopts "n:" OPTION ; do
+        case "$OPTION" in
+            n) SESSION_NAME="$OPTARG"
+            ;;
+            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
     local IMAGE_ID=$1
     local GROUP_NAME=$2
     local CONFIG_NAME=$3
-    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP
     cluster_defaults_config
 
     local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
-    SESSION_NAME="$GROUP_SANITIZED"`date +%M`
+
+    if [[ -z "$SESSION_NAME" ]]; then
+        SESSION_NAME="$GROUP_SANITIZED"`date +%M`
+    fi
 
     if [[ -z "$IMAGE_ID" || -z "$GROUP_NAME" || -z "$CONFIG_NAME" ]]; then
-        echo "usage $0 image config [image id] [group name] [config name]"
+        echo "USAGE: $0 image config <OPTIONS> [image id] [group name] [config name]"
+        echo "OPTIONS:"
+        echo -e "\t-n [name] - set a name for the cfs run instead of the default name"
         exit 1
     fi
 

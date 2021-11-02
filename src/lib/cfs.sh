@@ -55,7 +55,7 @@ function cfs {
 
 function cfs_help {
     echo    "USAGE: $0 cfs [action]"
-    echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'" 
+    echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
     echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
@@ -66,7 +66,7 @@ function cfs_help {
     echo -e "\tshow [cfs] : shows all info on a given cfs"
     echo -e "\tunconf : List all unconfigured nodes"
     echo -e "\tupdate [cfs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
-    
+
     exit 1
 }
 
@@ -127,8 +127,8 @@ function cfs_clone {
     set -e
     tmpdir
     TMPFILE="$TMPDIR/cfs_config.json"
-    
-    cfs_describe $SRC --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE" 
+
+    cfs_describe $SRC --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE"
 
     cray cfs configurations update $DEST --file "$TMPFILE" --format json > /dev/null 2>&1
     set +e
@@ -146,7 +146,7 @@ function cfs_edit {
     (
         set -e
         flock -x 42
-        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null 
+        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
         if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
             rm -f "$CONFIG_DIR/$CONFIG.json"
@@ -168,15 +168,29 @@ function cfs_edit {
 }
 
 function cfs_apply {
+    local NAME JOB POD TRIED MAX_TRIES RET NODE_STRING ARGS OPTIND
+    OPTIND=1
+    while getopts "n:" OPTION ; do
+        case "$OPTION" in
+            n) NAME="$OPTARG"
+            ;;
+            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+        esac
+    done
 
+    shift $((OPTIND-1))
+    echo "$@"
     local CONFIG=$1
     shift
     local NODES=( "$1" )
-    local NAME=cfs`date +%s`
-    local JOB POD TRIED MAX_TRIES RET NODE_STRING ARGS 
+    if [[ -z "$NAME" ]]; then
+        NAME=cfs`date +%s`
+    fi
 
     if [[ -z "$CONFIG" ]]; then
-        echo "usage: $0 cfs apply [configuration name] [nodes|groups]"
+        echo "USAGE: $0 cfs apply <options> [configuration name] [nodes|groups]"
+        echo "OPTIONS:"
+        echo -e "\t-n - specify a name to give the cfs job"
         exit 1
     fi
     refresh_ansible_groups
@@ -191,7 +205,11 @@ function cfs_apply {
         cray cfs components update --enabled true "$node" > /dev/null 2>&1
     done
 
-    cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES" --target-group "$GROUP" "$NODES" --target-definition=spec
+    if [[ -z "$NODES" ]]; then
+        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES"
+    else
+        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG
+    fi
     sleep 1
     cfs_log_job "$NAME"
 
@@ -202,7 +220,7 @@ function cfs_apply {
 function cfs_unconfigured {
     refresh_ansible_groups
     NODES=( $(cray cfs components list --format json | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
-    
+
     echo -e "${COLOR_BOLD}XNAME\t\tGROUP$COLOR_RESET"
     for node in "${NODES[@]}"; do
         echo -e "$node\t${NODE2GROUP[$node]}"
@@ -217,7 +235,7 @@ function cfs_log_job {
         echo "USAGE: $0 cfs job log <cfs jobid>"
         exit 1
     fi
-    
+
     set -e
     cmd_wait_output "job" cray cfs sessions describe "$CFS"
     JOB=$(cray cfs sessions describe "$CFS" | grep job | awk '{print $3}' | sed 's/"//g')
@@ -287,7 +305,7 @@ function cfs_logwatch {
             echo "### container: $cont"
             echo "#################################################"
             verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
-                  
+
         fi
     done
 }
@@ -326,7 +344,7 @@ function cfs_update {
         set -e
         flock -x 42
 
-        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null 
+        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
 
         if [[ ! -s "$FILE" ]]; then
             rm -f "$FILE"
@@ -359,7 +377,7 @@ function cfs_update_git {
     local FILE="$1"
     local LAYER="$2"
     local CONFIG="$3"
-    
+
 
     get_git_password
 
@@ -368,13 +386,13 @@ function cfs_update_git {
     if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
         LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
         URL=$(echo "$LAYER_URL" | sed "s|https://|https://$GIT_USER:$GIT_PASSWD@|g"| sed "s|http://|http://$GIT_USER:$GIT_PASSWD@|g")
- 
+
         echo "cloning $LAYER_URL"
         cd "$TMPDIR"
         git clone "$URL" "$TMPDIR/$LAYER"
         cd "$TMPDIR/$LAYER"
         git checkout "${CFS_BRANCH_DEFAULT[$LAYER_URL]}"
-                
+
         NEW_COMMIT=$(git rev-parse HEAD)
         if [[ "$LAYER_CUR_COMMIT" != "$NEW_COMMIT" ]]; then
             echo "old commit: $LAYER_CUR_COMMIT"

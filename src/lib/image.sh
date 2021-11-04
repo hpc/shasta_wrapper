@@ -194,7 +194,7 @@ function image_build {
 
 
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
-    image_configure -t "$CONFIG_TAG" "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+    image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
         die "[$GROUP_NAME] configure image failed... Not continuing"
     fi

@@ -182,7 +182,7 @@ function cfs_apply {
     echo "$@"
     local CONFIG=$1
     shift
-    local NODES=( "$1" )
+    local NODES="$1"
     if [[ -z "$NAME" ]]; then
         NAME=cfs`date +%s`
     fi
@@ -205,7 +205,7 @@ function cfs_apply {
         cray cfs components update --enabled true "$node" > /dev/null 2>&1
     done
 
-    if [[ -z "$NODES" ]]; then
+    if [[ -n "$NODES" ]]; then
         cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES"
     else
         cray cfs sessions create --name "$NAME" --configuration-name $CONFIG

@@ -106,7 +106,7 @@ function bos_job_delete {
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_bos_jobs
         JOBS=( "${BOS_JOBS[@]}" )
-        prompt "Would you really like to delete all ${#JOBS[@]} jobs?" "Yes" "No" || exit 0
+        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
     fi
 
     for job in "${JOBS[@]}"; do

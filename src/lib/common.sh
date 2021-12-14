@@ -16,6 +16,23 @@ function tmpdir {
     RETURN="$TMPDIR"
 }
 
+function prompt_yn {
+    local QUESTION=$1
+    shift
+
+    local ANS="${#ANSWERS[@]}"
+    while [[ "$ANS" == 'y' || "$ANS" == 'n' ]]; do
+        echo "$QUESTION"
+        echo -n "ANSWER [yn]: "
+        read ANS
+    done
+    if [[ "$ANS" -eq 'y' ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 function prompt {
     local QUESTION=$1
     shift

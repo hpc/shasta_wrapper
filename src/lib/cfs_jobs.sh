@@ -103,7 +103,7 @@ function cfs_job_delete {
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_cfs_jobs_raw
         JOBS=( $(echo "$CFS_JOBS_RAW" | jq '.[].name' | sed 's/"//g') )
-        prompt "Would you really like to delete all ${#JOBS[@]} jobs?(WARNING this will also delete all bos jobs!)" "Yes" "No" || exit 0
+        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?(WARNING this will also delete all bos jobs!)" || exit 0
 
         echo
         echo "# BOS jobs"
@@ -111,7 +111,7 @@ function cfs_job_delete {
     elif [[ "${JOBS[0]}" == "--complete" ]]; then
         refresh_cfs_jobs_raw
         JOBS=( $(echo "$CFS_JOBS_RAW" | jq '.[] | select(.status.session.status == "complete")' | jq '.name' | sed 's/"//g') )
-        prompt "Would you really like to delete the ${#JOBS[@]} complete jobs?" "Yes" "No" || exit 0
+        prompt_yn "Would you really like to delete the ${#JOBS[@]} complete jobs?" || exit 0
     fi
 
     for job in "${JOBS[@]}"; do

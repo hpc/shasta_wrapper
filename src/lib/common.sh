@@ -20,13 +20,13 @@ function prompt_yn {
     local QUESTION=$1
     shift
 
-    local ANS="${#ANSWERS[@]}"
-    while [[ "$ANS" == 'y' || "$ANS" == 'n' ]]; do
+    local ANS="0"
+    while [[ "$ANS" != 'y' && "$ANS" != 'n' ]]; do
         echo "$QUESTION"
         echo -n "ANSWER [yn]: "
         read ANS
     done
-    if [[ "$ANS" -eq 'y' ]]; then
+    if [[ "$ANS" == 'y' ]]; then
         return 0
     else
         return 1

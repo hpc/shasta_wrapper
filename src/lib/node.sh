@@ -130,7 +130,7 @@ function node_action {
     declare -A ACTION_GROUPS
 
     for NODE in "${NODES[@]}"; do
-        bos_get_default_node_group
+        bos_get_default_node_group "$NODE"
         GROUP="$RETURN"
         ACTION_GROUPS[$GROUP]+="$NODE "
     done
@@ -144,6 +144,6 @@ function node_action {
         if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi
-        bos_boot "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$NODES"
+        bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$NODES"
     done
 }

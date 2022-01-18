@@ -9,11 +9,11 @@ function group {
             ;;
         boot)
             shift
-            group_boot boot "$@"
+            group_action boot "$@"
             ;;
         conf*)
             shift
-            group_config "$@"
+            group_action configure "$@"
             ;;
         li*)
             shift
@@ -25,7 +25,7 @@ function group {
             ;;
         reboot)
             shift
-            group_boot reboot "$@"
+            group_action reboot "$@"
             ;;
         sho*)
             shift
@@ -37,7 +37,7 @@ function group {
             ;;
         shutdown)
             shift
-            group_boot shutdown "$@"
+            group_action shutdown "$@"
             ;;
         *)
             group_help
@@ -72,20 +72,22 @@ function group_list {
     done | sort
 }
 
-function group_boot {
+function group_action {
     local ACTION="$1"
     local GROUP="$2"
+    local NODES=""
     if [[ -z "$GROUP" ]]; then
         echo "USAGE: $0 group $ACTION [group]" 1>&2
         exit 1
     fi
-    cluster_defaults_config
+    refresh_ansible_groups
 
 
-    if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
+    if [[ -z "${GROUP2NODES[$GROUP]}" ]]; then
         die "Group '$GROUP' is not a valid group" 1>&2
     fi
-    bos_boot "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$GROUP"
+    NODES="${GROUP2NODES[$GROUP]}"
+    node_action "$ACTION" $NODES
 }
 
 function refresh_ansible_groups {
@@ -230,21 +232,4 @@ function group_summary {
         group_describe $ARGS "$group"
         echo ""
     done
-}
-function group_config {
-    local GROUP="$1"
-    if [[ -z "$GROUP" ]]; then
-        echo "USAGE: $0 group config [group]" 1>&2
-        exit 1
-    fi
-    refresh_ansible_groups
-    cluster_defaults_config
-
-
-
-    if [[ -z "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
-        die "Group '$GROUP' is not assigned a bos template!"
-    fi
-    echo "configuring group '$GROUP'..."
-    bos_boot configure "${BOS_DEFAULT[$GROUP]}" "$GROUP"
 }

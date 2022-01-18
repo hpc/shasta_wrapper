@@ -138,7 +138,7 @@ function node_boot {
 
     for GROUP in ${!REBOOT_GROUPS[@]}; do
         NODES=$(echo "${REBOOT_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
-        prompt "Ok to reboot GROUP '$GROUP' for nodes: $NODES?" "Yes" "No" || exit 0
+        prompt_yn "Ok to reboot GROUP '$GROUP' for nodes: $NODES?" || exit 0
         if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi

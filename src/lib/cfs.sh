@@ -397,7 +397,7 @@ function cfs_update_git {
         if [[ "$LAYER_CUR_COMMIT" != "$NEW_COMMIT" ]]; then
             echo "old commit: $LAYER_CUR_COMMIT"
             echo "new commit: $NEW_COMMIT"
-            prompt "Would you like to apply the new commit '$NEW_COMMIT' for '$LAYER_URL'?" "Yes" "No" || return 0
+            prompt_yn "Would you like to apply the new commit '$NEW_COMMIT' for '$LAYER_URL'?" || return 0
             json_set_field "$FILE" ".layers[$LAYER].commit" "$NEW_COMMIT"
             verbose_cmd cray cfs configurations update $CONFIG --file "$CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
         else

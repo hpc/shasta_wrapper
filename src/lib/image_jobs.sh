@@ -94,12 +94,12 @@ function image_job_delete {
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_image_jobs_raw
         JOBS=( $(echo "$IMS_JOBS_RAW" | jq '.[].id' | sed 's/"//g') )
-        prompt "Would you really like to delete all ${#JOBS[@]} jobs?" "Yes" "No" || exit 0
+        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
 
     elif [[ "${JOBS[0]}" == "--complete" ]]; then
         refresh_image_jobs_raw
         JOBS=( $(echo "$IMS_JOBS_RAW" | jq '.[] | select(.status == "success")' | jq '.id' | sed 's/"//g') )
-        prompt "Would you really like to delete the ${#JOBS[@]} complete jobs?" "Yes" "No" || exit 0
+        prompt_yn "Would you really like to delete the ${#JOBS[@]} complete jobs?" || exit 0
     fi
 
     for job in "${JOBS[@]}"; do

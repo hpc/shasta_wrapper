@@ -2,11 +2,11 @@ function node {
     case "$1" in
         boot)
             shift
-            node_boot boot "$@"
+            node_ boot "$@"
             ;;
         con*)
             shift
-            node_config "$@"
+            node_action configure "$@"
             ;;
         li*)
             shift
@@ -18,7 +18,7 @@ function node {
             ;;
         reboot)
             shift
-            node_boot reboot "$@"
+            node_action reboot "$@"
             ;;
         sho*)
             shift
@@ -26,7 +26,7 @@ function node {
             ;;
         shutdown)
             shift
-            node_boot shutdown "$@"
+            node_action shutdown "$@"
             ;;
         unconf*)
             shift
@@ -94,11 +94,11 @@ function node_describe {
          echo "image_name:          $IMAGE_NAME"
          echo "image_id:            $IMAGE_ID"
          echo "config:              $CONFIG"
-         echo "nodes:               $GROUP"
+         echo "groups:               $GROUP"
     elif [[ -n "${CONFIG_DEFAULT[$GROUP]}" ]]; then
          echo "[$NODE]"
          echo "config:              ${CONFIG_DEFAULT[$GROUP]}"
-         echo "nodes:               $GROUP"
+         echo "groups:               $GROUP"
     else
         die "'$NODE' is not a valid node."
     fi
@@ -116,7 +116,7 @@ function node_describe {
 
 }
 
-function node_boot {
+function node_action {
     local ACTION="$1"
     shift
     local NODES=( "$@" )
@@ -127,50 +127,23 @@ function node_boot {
     fi
     refresh_ansible_groups
     cluster_defaults_config
-    declare -A REBOOT_GROUPS
+    declare -A ACTION_GROUPS
 
     for NODE in "${NODES[@]}"; do
-        if [[ -z "${NODE2GROUP[$NODE]}" ]]; then
-            die "Error. Node '$NODE' is not a valid node"
-        fi
-        REBOOT_GROUPS[${NODE2GROUP[$NODE]}]+="$NODE "
+        bos_get_default_node_group
+        GROUP="$RETURN"
+        ACTION_GROUPS[$GROUP]+="$NODE "
+    done
+    for GROUP in ${!ACTION_GROUPS[@]}; do
+        NODES=$(echo "${ACTION_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
+        prompt_yn "Ok to $ACTION GROUP '$GROUP' for nodes: $NODES?" "Yes" "No" || unset ACTION_GROUPS[$GROUP]
     done
 
-    for GROUP in ${!REBOOT_GROUPS[@]}; do
-        NODES=$(echo "${REBOOT_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
-        prompt_yn "Ok to reboot GROUP '$GROUP' for nodes: $NODES?" || exit 0
+    for GROUP in ${!ACTION_GROUPS[@]}; do
+        NODES=$(echo "${ACTION_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
         if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi
         bos_boot "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$NODES"
-    done
-}
-
-function node_config {
-    local NODES=( "$@" )
-    local GROUP
-    if [[ -z "${NODES[0]}" ]]; then
-        echo "USAGE: $0 node config [xnames]" 1>&2
-        exit 1
-    fi
-    refresh_ansible_groups
-    cluster_defaults_config
-    declare -A CONFIG_GROUPS
-
-    for NODE in "${NODES[@]}"; do
-        if [[ -z "${NODE2GROUP[$NODE]}" ]]; then
-            die "Error. Node '$NODE' is not a valid node"
-        fi
-        GROUP="${NODE2GROUP[$NODE]}"
-        CONFIG_GROUPS[$GROUP]+="$NODE "
-    done
-
-    for GROUP in ${!CONFIG_GROUPS[@]}; do
-        NODES=$(echo "${CONFIG_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
-        echo "configuring nodes '$NODES' as group '$GROUP'..."
-        if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
-            die "Group '$GROUP' is not assigned a bos template!"
-        fi
-        bos_boot configure "${BOS_DEFAULT[$GROUP]}" "$NODES"
     done
 }

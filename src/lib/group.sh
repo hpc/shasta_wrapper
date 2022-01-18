@@ -42,7 +42,7 @@ function group {
         *)
             group_help
             ;;
-    esac    
+    esac
 }
 
 function group_help {
@@ -57,12 +57,12 @@ function group_help {
     echo -e "\tshow : show details on a specific node group"
     echo -e "\tsummary <-v> : show all groups and their general configs"
     echo -e "\tshutdown [group] : shutdown all nodes in the group"
-    
+
     exit 1
 }
 
 function group_list {
-    local group 
+    local group
     cluster_defaults_config
     for group in "${!CONFIG_DEFAULT[@]}"; do
         echo $group
@@ -81,7 +81,7 @@ function group_boot {
     fi
     cluster_defaults_config
 
-    
+
     if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
         die "Group '$GROUP' is not a valid group" 1>&2
     fi
@@ -89,7 +89,7 @@ function group_boot {
 }
 
 function refresh_ansible_groups {
-    local ANSIBLE_LINES LINE SPLIT GROUP 
+    local ANSIBLE_LINES LINE SPLIT GROUP
     cluster_defaults_config
 
     if [[ -n "${!NODE2GROUP[@]}" ]]; then
@@ -99,15 +99,13 @@ function refresh_ansible_groups {
     IFS=$'\n'
     ANSIBLE_LINES=( $(cat /etc/ansible/hosts | grep -v 'hosts:$' | grep -v 'children:$' | grep -v 'all:$' | sed 's/: {}//g' | sed 's/ //g') )
     IFS=$' \t\n'
-    
+
     GROUP=""
     for LINE in "${ANSIBLE_LINES[@]}"; do
         if [[ ${LINE: -1:1} == ':' && CUR_IMAGE_CONFIG[$${LINE:0:${#LINE}-1] ]]; then
             GROUP="${LINE:0:${#LINE}-1}"
         else
-            if [[ -z "${NODE2GROUP[$LINE]}" || -n "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
-                NODE2GROUP[$LINE]=$GROUP
-            fi
+            NODE2GROUP[$LINE]+="$GROUP "
             GROUP2NODES[$GROUP]+="$LINE "
         fi
     done
@@ -133,7 +131,7 @@ function group_describe {
 
     local CONFIG IMAGE_ETAG BOS_RAW IMAGE
     if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
-        
+
 
         CONFIG="${CUR_IMAGE_CONFIG[$GROUP]}"
         IMAGE_ETAG="${CUR_IMAGE_ETAG[$GROUP]}"
@@ -143,7 +141,7 @@ function group_describe {
 
          echo "[$GROUP]"
          echo "bos_sessiontemplate: ${BOS_DEFAULT[$GROUP]}"
-         echo "recipe_id:           ${RECIPE_DEFAULT[$GROUP]}"          
+         echo "recipe_id:           ${RECIPE_DEFAULT[$GROUP]}"
          echo "image_name:          $IMAGE_NAME"
          echo "image_id:            $IMAGE_ID"
          echo "config:              $CONFIG"
@@ -166,7 +164,7 @@ function group_build_images {
     local MAP="1"
     if [[ "$1" == "--map" ]]; then
         MAP="0"
-        
+
         shift
     fi
     local GROUP="$1"
@@ -177,8 +175,8 @@ function group_build_images {
     cluster_validate
     echo "Done"
     echo
-    
-    
+
+
     echo "## Launching Image Build(s)"
     if [[ -n "$GROUP" ]]; then
         if [[ -z "${RECIPE_DEFAULT[$GROUP]}" ]]; then
@@ -223,7 +221,7 @@ function group_summary {
     fi
     local group
     cluster_defaults_config
-    
+
     for group in "${!CONFIG_DEFAULT[@]}"; do
         group_describe $ARGS "$group"
         echo ""
@@ -242,7 +240,7 @@ function group_config {
     refresh_ansible_groups
     cluster_defaults_config
 
-    
+
 
     if [[ -z "${CUR_IMAGE_CONFIG[$GROUP]}" ]]; then
         die "Group '$GROUP' is not assigned a bos template!"

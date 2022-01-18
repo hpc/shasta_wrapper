@@ -200,7 +200,6 @@ function cfs_apply {
         if [ -z "${NODE2GROUP[$node]}" ]; then
             die "Can't find a group for node '$node'"
         fi
-        GROUP=${NODE2GROUP[$node]}
         cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
         cray cfs components update --enabled true "$node" > /dev/null 2>&1
     done

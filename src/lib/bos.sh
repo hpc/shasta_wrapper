@@ -10,9 +10,13 @@ function bos {
             shift
             bos_clone "$@"
             ;;
+        boot)
+            shift
+            bos_action boot "$@"
+            ;;
         config*)
             shift
-            bos_boot configure "$@"
+            bos_action configure "$@"
             ;;
         delete)
             shift
@@ -36,7 +40,7 @@ function bos {
             ;;
         reboot)
             shift
-            bos_boot reboot "$@"
+            bos_action reboot "$@"
             ;;
         sh*)
             shift
@@ -73,6 +77,26 @@ function refresh_bos_raw {
        return 1
     fi
     return 0
+}
+
+function bos_get_default_node_group {
+    local NODE="$1"
+    cluster_defaults_config
+    refresh_ansible_groups
+
+    if [[ -z "${NODE2GROUP[$NODE]}" ]]; then
+        die "Error. Node '$NODE' is not a valid node"
+    fi
+
+    # This is needed to split it by space
+    GROUP_LIST="${NODE2GROUP[$NODE]}"
+    for GROUP in $GROUP_LIST; do
+        if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
+            RETURN="$GROUP"
+            return
+        fi
+    done
+    die "Error. Node '$NODE' is not a member of any group defined for 'BOS_DEFAULT' in /etc/cluster_defaults.conf"
 }
 
 function bos_list {
@@ -187,7 +211,7 @@ function bos_edit {
     fi
 }
 
-function bos_boot {
+function bos_action {
     local ACTION="$1"
     local TEMPLATE="$2"
     local TARGET="$3"

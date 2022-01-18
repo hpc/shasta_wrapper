@@ -136,7 +136,7 @@ function node_action {
     done
     for GROUP in ${!ACTION_GROUPS[@]}; do
         NODES=$(echo "${ACTION_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
-        prompt_yn "Ok to $ACTION GROUP '$GROUP' for nodes: $NODES?" "Yes" "No" || unset ACTION_GROUPS[$GROUP]
+        prompt_yn "Ok to $ACTION GROUP '$GROUP' for nodes: $NODES?" || unset ACTION_GROUPS[$GROUP]
     done
 
     for GROUP in ${!ACTION_GROUPS[@]}; do

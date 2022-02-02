@@ -73,10 +73,8 @@ function node_describe {
     fi
 
     refresh_ansible_groups
-    if [[ -z "${NODE2GROUP[$NODE]}" ]] ; then
-       die "'$NODE' is not a valid node"
-    fi
-    GROUP="${NODE2GROUP[$NODE]}"
+    bos_get_default_node_group "$NODE"
+    GROUP="$RETURN"
     image_defaults
     cluster_defaults_config
     if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then

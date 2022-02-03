@@ -182,11 +182,12 @@ function cfs_apply {
     echo "$@"
     local CONFIG=$1
     shift
-    local NODES="$1"
+    local NODES=( "$@" )
     if [[ -z "$NAME" ]]; then
         NAME=cfs`date +%s`
     fi
 
+    NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 cfs apply <options> [configuration name] [nodes|groups]"
         echo "OPTIONS:"
@@ -195,17 +196,10 @@ function cfs_apply {
     fi
     refresh_ansible_groups
 
-    SPLIT=( $(echo $NODES | sed 's/,/ /g') )
-    for node in "${SPLIT[@]}"; do
-        if [ -z "${NODE2GROUP[$node]}" ]; then
-            die "Can't find a group for node '$node'"
-        fi
-        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
-        cray cfs components update --enabled true "$node" > /dev/null 2>&1
-    done
+    cfs_clear_node_counters "${NODES[@]}"
 
-    if [[ -n "$NODES" ]]; then
-        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES"
+    if [[ -n "${NODES[*]}" ]]; then
+        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODE_STRING"
     else
         cray cfs sessions create --name "$NAME" --configuration-name $CONFIG
     fi
@@ -214,6 +208,31 @@ function cfs_apply {
 
 
     cray cfs sessions delete "$NAME"
+}
+
+function cfs_clear_node_counters {
+    local NODES=( "$@" )
+    local NODE i COUNT JOBS
+
+    for NODE in "${NODES[@]}"; do
+        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1 &
+        cray cfs components update --enabled true "$node" > /dev/null 2>&1 &
+    done
+
+    i=0
+    while [[ "$i" -lt "${#NODES[@]}" ]]; do
+        JOBS=$(jobs -r | wc -l)
+        COUNT="${#NODES[@]}"
+        ((i=$COUNT - $JOBS /2))
+        echo -en "\rUpdating node state: $i/${#SPLIT[@]}"
+        sleep 2
+    done
+
+    for NODE in "${NODES[@]}"; do
+        wait
+        wait
+    done
+    echo
 }
 
 function cfs_unconfigured {

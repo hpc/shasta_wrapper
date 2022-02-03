@@ -42,9 +42,13 @@ function bos {
             shift
             bos_action reboot "$@"
             ;;
-        sh*)
+        sho*)
             shift
             bos_describe "$@"
+            ;;
+        shutdown)
+            shift
+            bos_action shutdown "$@"
             ;;
         *)
             bos_help
@@ -62,6 +66,7 @@ function bos_help {
     echo -e "\tdescribe [template] : (same as show)"
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
+    echo -e "\tshutdown [template] [nodes|groups] : shutdown a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
 
     exit 1
@@ -213,42 +218,27 @@ function bos_edit {
 
 function bos_action {
     local ACTION="$1"
-    local TEMPLATE="$2"
-    local TARGET="$3"
+    shift
+    local TEMPLATE="$1"
+    shift
+    local TARGET=( "$@" )
 
-    local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE
+    local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
+    TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
     cluster_defaults_config
-    SPLIT=( $(echo $TARGET | sed 's/,/ /g') )
-    for node in "${SPLIT[@]}"; do
-        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1 &
-        cray cfs components update --enabled true "$node" > /dev/null 2>&1 &
-    done
-    i=0
-    while [[ "$i" -lt "${#SPLIT[@]}" ]]; do
-        JOBS=$(jobs -r | wc -l)
-        COUNT="${#SPLIT[@]}"
-        ((i=$COUNT - $JOBS /2))
-        echo -en "\rUpdating node state: $i/${#SPLIT[@]}"
-        sleep 2
-    done
-    for node in "${SPLIT[@]}"; do
-        wait
-        wait
-    done
-    echo
+    cfs_clear_node_counters "${TARGET[@]}"
 
     if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
     bos_exit_if_not_valid "$TEMPLATE"
-    KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
+    KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to create bos session"
     fi
     BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
-
 
 
     # if booting more than one node,

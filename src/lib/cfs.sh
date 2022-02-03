@@ -59,13 +59,13 @@ function cfs_help {
     echo    "ACTIONS:"
     echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
-    echo -e "\tedit [cfs] : Edit a given cfs."
-    echo -e "\tdelete [cfs] : delete the cfs"
-    echo -e "\tdescribe [cfs] : (same as show)"
+    echo -e "\tedit [cfs config] : Edit a given cfs."
+    echo -e "\tdelete [cfs config] : delete the cfs"
+    echo -e "\tdescribe [cfs config] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
-    echo -e "\tshow [cfs] : shows all info on a given cfs"
+    echo -e "\tshow [cfs config] : shows all info on a given cfs"
     echo -e "\tunconf : List all unconfigured nodes"
-    echo -e "\tupdate [cfs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
+    echo -e "\tupdate [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
 
     exit 1
 }
@@ -182,11 +182,12 @@ function cfs_apply {
     echo "$@"
     local CONFIG=$1
     shift
-    local NODES="$1"
+    local NODES=( "$@" )
     if [[ -z "$NAME" ]]; then
         NAME=cfs`date +%s`
     fi
 
+    NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 cfs apply <options> [configuration name] [nodes|groups]"
         echo "OPTIONS:"
@@ -195,17 +196,10 @@ function cfs_apply {
     fi
     refresh_ansible_groups
 
-    SPLIT=( $(echo $NODES | sed 's/,/ /g') )
-    for node in "${SPLIT[@]}"; do
-        if [ -z "${NODE2GROUP[$node]}" ]; then
-            die "Can't find a group for node '$node'"
-        fi
-        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1
-        cray cfs components update --enabled true "$node" > /dev/null 2>&1
-    done
+    cfs_clear_node_counters "${NODES[@]}"
 
-    if [[ -n "$NODES" ]]; then
-        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODES"
+    if [[ -n "${NODES[*]}" ]]; then
+        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODE_STRING"
     else
         cray cfs sessions create --name "$NAME" --configuration-name $CONFIG
     fi
@@ -214,6 +208,31 @@ function cfs_apply {
 
 
     cray cfs sessions delete "$NAME"
+}
+
+function cfs_clear_node_counters {
+    local NODES=( "$@" )
+    local NODE i COUNT JOBS
+
+    for NODE in "${NODES[@]}"; do
+        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1 &
+        cray cfs components update --enabled true "$node" > /dev/null 2>&1 &
+    done
+
+    i=0
+    while [[ "$i" -lt "${#NODES[@]}" ]]; do
+        JOBS=$(jobs -r | wc -l)
+        COUNT="${#NODES[@]}"
+        ((i=$COUNT - $JOBS /2))
+        echo -en "\rUpdating node state: $i/${#SPLIT[@]}"
+        sleep 2
+    done
+
+    for NODE in "${NODES[@]}"; do
+        wait
+        wait
+    done
+    echo
 }
 
 function cfs_unconfigured {
@@ -328,37 +347,53 @@ function read_git_config {
 }
 
 function cfs_update {
-    local CONFIG="$1"
-    local FILE="$CONFIG_DIR/$CONFIG.json"
-    local LAYER LAYER_URL FLOCK
-    if [[ -z "$CONFIG" ]]; then
-        echo "USAGE: $0 cfs edit [cfs]" 1>&2
-        exit 1
+    local CONFIGS=( "$@" )
+    local LAYER LAYER_URL FLOCK CONFIG
+
+    if [[ -z "${CONFIGS[@]}" ]]; then
+        prompt_yn "No arguments given, update all default cfs configs?" || exit 0
+        cluster_defaults_config
+        CONFIGS=( )
+        for group in "${!CUR_IMAGE_CONFIG[@]}"; do
+             CONFIGS+=( "${CUR_IMAGE_CONFIG[$group]}" )
+        done
     fi
 
-    cfs_exit_if_not_valid "$CONFIG"
-
-    read_git_config
-    (
-        set -e
-        flock -x 42
-
-        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
-
-        if [[ ! -s "$FILE" ]]; then
-            rm -f "$FILE"
-            die "Error! Config '$CONFIG' does not exist!"
+    for CONFIG in "${CONFIGS[@]}"; do
+        local FILE="$CONFIG_DIR/$CONFIG.json"
+        if [[ -z "$CONFIG" ]]; then
+            echo "USAGE: $0 cfs edit [cfs]" 1>&2
+            exit 1
         fi
-       tmpdir
+	echo "#### $CONFIG"
 
-        GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
-        GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
-        for LAYER in $(seq 0 $GIT_REPO_COUNT); do
-            cfs_update_git "$FILE" "$LAYER" "$CONFIG"
-        done
-        rmdir "$TMPDIR" > /dev/null 2>&1
-        set +e
-    ) 42>/tmp/lock
+        cfs_exit_if_not_valid "$CONFIG"
+
+        read_git_config
+        (
+            set -e
+            flock -x 42
+
+            cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
+
+            if [[ ! -s "$FILE" ]]; then
+                rm -f "$FILE"
+                die "Error! Config '$CONFIG' does not exist!"
+            fi
+            tmpdir
+
+            GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
+            GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
+            for LAYER in $(seq 0 $GIT_REPO_COUNT); do
+                cfs_update_git "$FILE" "$LAYER" "$CONFIG"
+            done
+            rmdir "$TMPDIR" > /dev/null 2>&1
+            set +e
+        ) 42>/tmp/lock
+
+	echo
+	echo
+    done
 }
 
 function get_git_password {

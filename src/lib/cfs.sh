@@ -347,37 +347,53 @@ function read_git_config {
 }
 
 function cfs_update {
-    local CONFIG="$1"
-    local FILE="$CONFIG_DIR/$CONFIG.json"
-    local LAYER LAYER_URL FLOCK
-    if [[ -z "$CONFIG" ]]; then
-        echo "USAGE: $0 cfs edit [cfs]" 1>&2
-        exit 1
+    local CONFIGS=( "$@" )
+    local LAYER LAYER_URL FLOCK CONFIG
+
+    if [[ -z "${CONFIGS[@]}" ]]; then
+        prompt_yn "No arguments given, update all default cfs configs?" || exit 0
+        cluster_defaults_config
+        CONFIGS=( )
+        for group in "${!CUR_IMAGE_CONFIG[@]}"; do
+             CONFIGS+=( "${CUR_IMAGE_CONFIG[$group]}" )
+        done
     fi
 
-    cfs_exit_if_not_valid "$CONFIG"
-
-    read_git_config
-    (
-        set -e
-        flock -x 42
-
-        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
-
-        if [[ ! -s "$FILE" ]]; then
-            rm -f "$FILE"
-            die "Error! Config '$CONFIG' does not exist!"
+    for CONFIG in "${CONFIGS[@]}"; do
+        local FILE="$CONFIG_DIR/$CONFIG.json"
+        if [[ -z "$CONFIG" ]]; then
+            echo "USAGE: $0 cfs edit [cfs]" 1>&2
+            exit 1
         fi
-       tmpdir
+	echo "#### $CONFIG"
 
-        GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
-        GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
-        for LAYER in $(seq 0 $GIT_REPO_COUNT); do
-            cfs_update_git "$FILE" "$LAYER" "$CONFIG"
-        done
-        rmdir "$TMPDIR" > /dev/null 2>&1
-        set +e
-    ) 42>/tmp/lock
+        cfs_exit_if_not_valid "$CONFIG"
+
+        read_git_config
+        (
+            set -e
+            flock -x 42
+
+            cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
+
+            if [[ ! -s "$FILE" ]]; then
+                rm -f "$FILE"
+                die "Error! Config '$CONFIG' does not exist!"
+            fi
+            tmpdir
+
+            GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
+            GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
+            for LAYER in $(seq 0 $GIT_REPO_COUNT); do
+                cfs_update_git "$FILE" "$LAYER" "$CONFIG"
+            done
+            rmdir "$TMPDIR" > /dev/null 2>&1
+            set +e
+        ) 42>/tmp/lock
+
+	echo
+	echo
+    done
 }
 
 function get_git_password {

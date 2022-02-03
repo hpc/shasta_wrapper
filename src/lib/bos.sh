@@ -42,9 +42,13 @@ function bos {
             shift
             bos_action reboot "$@"
             ;;
-        sh*)
+        sho*)
             shift
             bos_describe "$@"
+            ;;
+        shutdown)
+            shift
+            bos_action shutdown "$@"
             ;;
         *)
             bos_help
@@ -62,6 +66,7 @@ function bos_help {
     echo -e "\tdescribe [template] : (same as show)"
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
+    echo -e "\tshutdown [template] [nodes|groups] : shutdown a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
 
     exit 1

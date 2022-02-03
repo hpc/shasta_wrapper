@@ -59,13 +59,13 @@ function cfs_help {
     echo    "ACTIONS:"
     echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
-    echo -e "\tedit [cfs] : Edit a given cfs."
-    echo -e "\tdelete [cfs] : delete the cfs"
-    echo -e "\tdescribe [cfs] : (same as show)"
+    echo -e "\tedit [cfs config] : Edit a given cfs."
+    echo -e "\tdelete [cfs config] : delete the cfs"
+    echo -e "\tdescribe [cfs config] : (same as show)"
     echo -e "\tlist : list all ansible configurations"
-    echo -e "\tshow [cfs] : shows all info on a given cfs"
+    echo -e "\tshow [cfs config] : shows all info on a given cfs"
     echo -e "\tunconf : List all unconfigured nodes"
-    echo -e "\tupdate [cfs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
+    echo -e "\tupdate [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
 
     exit 1
 }

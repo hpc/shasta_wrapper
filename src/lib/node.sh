@@ -64,7 +64,8 @@ function node_list {
 }
 
 function node_describe {
-    local NODE="$1"
+    convert2xname "$@"
+    local NODE="$RETURN"
     local GROUP
 
     if [[ -z "$NODE" ]]; then
@@ -77,6 +78,11 @@ function node_describe {
     GROUP="$RETURN"
     image_defaults
     cluster_defaults_config
+    echo "xname: ${CONVERT2XNAME[$NODE]}"
+    echo "nid: ${CONVERT2FULLNID[$NODE]}"
+    echo "nmn: ${CONVERT2NMN[$NODE]}"
+    echo
+
     if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
 
 
@@ -117,7 +123,8 @@ function node_describe {
 function node_action {
     local ACTION="$1"
     shift
-    local NODES=( "$@" )
+    convert2xname "$@"
+    local NODES=( $RETURN )
     local GROUP
     if [[ -z "${NODES[0]}" ]]; then
         echo "USAGE: $0 node $ACTION [xnames]" 1>&2

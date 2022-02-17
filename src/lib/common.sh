@@ -3,6 +3,12 @@ TMPDIR=""
 COLOR_RED=$(echo '\033[0;31m')
 COLOR_BOLD=$(tput bold)
 COLOR_RESET=$(tput sgr0)
+NODE_CONVERSION_FILE=/usr/share/shasta_wrapper/node_conversion.sh
+declare -A CONVERT2XNAME
+declare -A CONVERT2NID
+declare -A CONVERT2FULLNID
+declare -A CONVERT2NMN
+
 
 function die {
     echo -e "${COLOR_RED}$@${COLOR_RESET}" 1>&2
@@ -114,6 +120,120 @@ function edit_file_nolock {
         return 1
     fi
     return 0
+}
+
+function get_node_conversions {
+    if [[ ! -f "$NODE_CONVERSION_FILE" ]]; then
+        refresh_sat_data
+    fi
+    if [[ -z "${!CONVERT2XNAME[@]}" ]]; then
+        source "$NODE_CONVERSION_FILE"
+    fi
+}
+
+function refresh_sat_data {
+    local SAT_FILE=/usr/share/shasta_wrapper/sat.out
+
+    sat status 2> /dev/null | grep Node | sed 's/[^a-zA-Z0-9 ]//g' > "$SAT_FILE"
+
+    IFS=$'\n'
+    NODES=( $(cat "$SAT_FILE" | awk '{print $1 " " $3}') )
+    IFS=$' \t\n'
+
+    echo "#!/bin/bash" > "$NODE_CONVERSION_FILE"
+
+    for NODE in "${NODES[@]}"; do
+        LINES=( $NODE )
+        XNAME="${LINES[0]}"
+        NID="${LINES[1]}"
+        FULLNID=$(printf 'nid%06d' $NID)
+        NMN="$FULLNID-nmn"
+
+        echo  >> "$NODE_CONVERSION_FILE"
+        echo  >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2XNAME[$NID]=$XNAME" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2XNAME[$FULLNID]=$XNAME" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2XNAME[$NMN]=$XNAME" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2XNAME[$XNAME]=$XNAME" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NID[$XNAME]=$NID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NID[$FULLNID]=$NID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NID[$NMN]=$NID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NID[$NID]=$NID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2FULLNID[$NMN]=$FULLNID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2FULLNID[$XNAME]=$FULLNID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2FULLNID[$NID]=$FULLNID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2FULLNID[$FULLNID]=$FULLNID" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NMN[$FULLNID]=$NMN" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NMN[$XNAME]=$NMN" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NMN[$NID]=$NMN" >> "$NODE_CONVERSION_FILE"
+        echo "CONVERT2NMN[$NMN]=$NMN" >> "$NODE_CONVERSION_FILE"
+    done
+}
+
+function convert2xname {
+    local NODES=( $(nodeset -e "$@") )
+    local NODE
+    get_node_conversions
+    NODE_LIST=()
+
+    for NODE in "${NODES[@]}"; do
+        if [[ -n "${CONVERT2XNAME[$NODE]}" ]]; then
+            NODE_LIST+=("${CONVERT2XNAME[$NODE]}")
+        else
+            die "Error node '$NODE' is invalid!"
+        fi
+    done
+    RETURN="${NODE_LIST[*]}"
+}
+
+function convert2nid {
+    local NODES=( $(nodeset -e "$@") )
+    local NODE
+    refresh_sat_data
+    NODE_LIST=()
+
+    for NODE in "${NODES[@]}"; do
+        if [[ -n "${CONVERT2NID[$NODE]}" ]]; then
+            NODE_LIST+=("${CONVERT2NID[$NODE]}")
+        else
+            die "Error node '$NODE' is invalid!"
+        fi
+    done
+    RETURN="${NODE_LIST[*]}"
+}
+
+function convert2fullnid {
+    local NODES=( $(nodeset -e "$@") )
+    local NODE
+    refresh_sat_data
+    NODE_LIST=()
+
+
+    for NODE in "${NODES[@]}"; do
+        if [[ -n "${CONVERT2FULLNID[$NODE]}" ]]; then
+            NODE_LIST+=("${CONVERT2FULLNID[$NODE]}")
+        else
+            die "Error node '$NODE' is invalid!"
+        fi
+    done
+    RETURN="${NODE_LIST[*]}"
+}
+
+function convert2nmn {
+    local NODES=( $(nodeset -e "$@") )
+    local NODE
+    refresh_sat_data
+    NODE_LIST=()
+
+
+    for NODE in "${NODES[@]}"; do
+        if [[ -n "${CONVERT2NMN[$NODE]}" ]]; then
+            NODE_LIST+=("${CONVERT2NMN[$NODE]}")
+        else
+            die "Error node '$NODE' is invalid!"
+        fi
+    done
+    RETURN="${NODE_LIST[*]}"
 }
 
 function json_set_field {

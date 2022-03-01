@@ -224,7 +224,7 @@ function cfs_clear_node_counters {
         JOBS=$(jobs -r | wc -l)
         COUNT="${#NODES[@]}"
         ((i=$COUNT - $JOBS /2))
-        echo -en "\rUpdating node state: $i/${#SPLIT[@]}"
+        echo -en "\rUpdating node state: $i/${#NODES[@]}"
         sleep 2
     done
 

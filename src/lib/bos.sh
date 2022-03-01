@@ -221,7 +221,8 @@ function bos_action {
     shift
     local TEMPLATE="$1"
     shift
-    local TARGET=( "$@" )
+    convert2xname "$@"
+    local TARGET=( $RETURN )
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')

@@ -125,7 +125,7 @@ function node_action {
     shift
     convert2xname "$@"
     local NODES=( $RETURN )
-    local GROUP
+    local GROUP TMP
     if [[ -z "${NODES[0]}" ]]; then
         echo "USAGE: $0 node $ACTION [xnames]" 1>&2
         exit 1
@@ -140,15 +140,17 @@ function node_action {
         ACTION_GROUPS[$GROUP]+="$NODE "
     done
     for GROUP in ${!ACTION_GROUPS[@]}; do
-        NODES=$(echo "${ACTION_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
-        prompt_yn "Ok to $ACTION GROUP '$GROUP' for nodes: $NODES?" || unset ACTION_GROUPS[$GROUP]
+        TMP="${ACTION_GROUPS[$GROUP]}"
+        NODES=( $TMP )
+        prompt_yn "Ok to $ACTION GROUP '$GROUP' for nodes: ${ACTION_GROUPS[$GROUP]}?" || unset ACTION_GROUPS[$GROUP]
     done
 
     for GROUP in ${!ACTION_GROUPS[@]}; do
-        NODES=$(echo "${ACTION_GROUPS[$GROUP]}" | sed 's/ $//g' | sed 's/ /,/g')
+        TMP="${ACTION_GROUPS[$GROUP]}"
+        NODES=( $TMP )
         if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi
-        bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "$NODES"
+        bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "${NODES[@]}"
     done
 }

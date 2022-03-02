@@ -123,13 +123,23 @@ function node_describe {
 function node_action {
     local ACTION="$1"
     shift
-    convert2xname "$@"
-    local NODES=( $RETURN )
-    local GROUP TMP
-    if [[ -z "${NODES[0]}" ]]; then
+
+    OPTIND=1
+    while getopts "y" OPTION ; do
+        case "$OPTION" in
+            y) ASSUME_YES=1;;
+            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    if [[ -z "$@" ]]; then
         echo "USAGE: $0 node $ACTION [xnames]" 1>&2
         exit 1
     fi
+    convert2xname "$@"
+    local NODES=( $RETURN )
+    local GROUP TMP
     refresh_ansible_groups
     cluster_defaults_config
     declare -A ACTION_GROUPS

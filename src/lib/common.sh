@@ -27,8 +27,12 @@ function prompt_yn {
     shift
 
     local ANS="0"
+    echo "$QUESTION"
+    if [[ -n "$ASSUME_YES" ]]; then
+        echo "ANSWER [yn]: ASSUMING YES"
+        return 0
+    fi
     while [[ "$ANS" != 'y' && "$ANS" != 'n' ]]; do
-        echo "$QUESTION"
         echo -n "ANSWER [yn]: "
         read ANS
     done

@@ -173,6 +173,52 @@ function refresh_sat_data {
         echo "CONVERT2NMN[$NMN]=$NMN" >> "$NODE_CONVERSION_FILE"
     done
 }
+function add_node_name {
+    local NAME="$1"
+    local XNAME NID FULLNID NMN
+    get_node_conversions
+
+    # Try to figure out it's xname
+    IP=$(getent hosts $NODE | awk '{print $1}')
+    if [[ -z "$IP" ]]; then
+        die "Error node '$NODE' is invalid!"
+    fi
+    XNAME=$(nslookup "$IP" | awk '{print $4}' | sed 's/\.$//g' |grep  -P '^x\d+c\d+s\d+.*' | head -n 1)
+    if [[  -z "$XNAME" ]]; then
+        die "Error node '$NODE' is invalid!"
+    fi
+
+    # Validate the xname looks valid
+    if [[ -n "${CONVERT2NID[$NAME]}" ]]; then
+        return # already added
+    fi
+    if [[ -z "${CONVERT2NID[$XNAME]}" ]]; then
+        die "add_node_name: '$XNAME' is not a valid xname!"
+    fi
+    if [[ -z "${CONVERT2FULLNID[$XNAME]}" ]]; then
+        die "add_node_name: '$XNAME' is not a valid xname!"
+    fi
+    if [[ -z "${CONVERT2NMN[$XNAME]}" ]]; then
+        die "add_node_name: '$XNAME' is not a valid xname!"
+    fi
+    if [[ -z "${CONVERT2XNAME[$XNAME]}" ]]; then
+        die "add_node_name: '$XNAME' is not a valid xname!"
+    fi
+
+    # Save the host for later fast lookup
+    NID="${CONVERT2NID[$XNAME]}"
+    FULLNID="${CONVERT2FULLNID[$XNAME]}"
+    NMN="${CONVERT2NMN[$XNAME]}"
+    echo >> "$NODE_CONVERSION_FILE"
+    echo "CONVERT2XNAME[$NAME]=$XNAME" >> "$NODE_CONVERSION_FILE"
+    echo "CONVERT2NID[$NAME]=$NID" >> "$NODE_CONVERSION_FILE"
+    echo "CONVERT2FULLNID[$NAME]=$FULLNID" >> "$NODE_CONVERSION_FILE"
+    echo "CONVERT2NMN[$NAME]=$NMN" >> "$NODE_CONVERSION_FILE"
+    CONVERT2XNAME[$NAME]="$XNAME"
+    CONVERT2NID[$NAME]="$NID"
+    CONVERT2FULLNID[$NAME]="$FULLNID"
+    CONVERT2NMN[$NAME]="$NMN"
+}
 
 function convert2xname {
     local NODES=( $(nodeset -e "$@") )
@@ -181,11 +227,10 @@ function convert2xname {
     NODE_LIST=()
 
     for NODE in "${NODES[@]}"; do
-        if [[ -n "${CONVERT2XNAME[$NODE]}" ]]; then
-            NODE_LIST+=("${CONVERT2XNAME[$NODE]}")
-        else
-            die "Error node '$NODE' is invalid!"
+        if [[ -z "${CONVERT2XNAME[$NODE]}" ]]; then
+            add_node_name "$NODE"
         fi
+        NODE_LIST+=("${CONVERT2XNAME[$NODE]}")
     done
     RETURN="${NODE_LIST[*]}"
 }
@@ -193,15 +238,14 @@ function convert2xname {
 function convert2nid {
     local NODES=( $(nodeset -e "$@") )
     local NODE
-    refresh_sat_data
+    get_node_conversions
     NODE_LIST=()
 
     for NODE in "${NODES[@]}"; do
-        if [[ -n "${CONVERT2NID[$NODE]}" ]]; then
-            NODE_LIST+=("${CONVERT2NID[$NODE]}")
-        else
-            die "Error node '$NODE' is invalid!"
+        if [[ -z "${CONVERT2NID[$NODE]}" ]]; then
+            add_node_name "$NODE"
         fi
+        NODE_LIST+=("${CONVERT2NID[$NODE]}")
     done
     RETURN="${NODE_LIST[*]}"
 }
@@ -209,16 +253,15 @@ function convert2nid {
 function convert2fullnid {
     local NODES=( $(nodeset -e "$@") )
     local NODE
-    refresh_sat_data
+    get_node_conversions
     NODE_LIST=()
 
 
     for NODE in "${NODES[@]}"; do
-        if [[ -n "${CONVERT2FULLNID[$NODE]}" ]]; then
-            NODE_LIST+=("${CONVERT2FULLNID[$NODE]}")
-        else
-            die "Error node '$NODE' is invalid!"
+        if [[ -z "${CONVERT2FULLNID[$NODE]}" ]]; then
+            add_node_name "$NODE"
         fi
+        NODE_LIST+=("${CONVERT2FULLNID[$NODE]}")
     done
     RETURN="${NODE_LIST[*]}"
 }
@@ -226,16 +269,15 @@ function convert2fullnid {
 function convert2nmn {
     local NODES=( $(nodeset -e "$@") )
     local NODE
-    refresh_sat_data
+    get_node_conversions
     NODE_LIST=()
 
 
     for NODE in "${NODES[@]}"; do
-        if [[ -n "${CONVERT2NMN[$NODE]}" ]]; then
-            NODE_LIST+=("${CONVERT2NMN[$NODE]}")
-        else
-            die "Error node '$NODE' is invalid!"
+        if [[ -z "${CONVERT2NMN[$NODE]}" ]]; then
+            add_node_name "$NODE"
         fi
+        NODE_LIST+=("${CONVERT2NMN[$NODE]}")
     done
     RETURN="${NODE_LIST[*]}"
 }

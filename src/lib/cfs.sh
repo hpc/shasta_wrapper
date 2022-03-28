@@ -227,11 +227,6 @@ function cfs_clear_node_counters {
         echo -en "\rUpdating node state: $i/${#NODES[@]}"
         sleep 2
     done
-
-    for NODE in "${NODES[@]}"; do
-        wait
-        wait
-    done
     echo
 }
 

@@ -152,7 +152,7 @@ function node_action {
     for GROUP in ${!ACTION_GROUPS[@]}; do
         TMP="${ACTION_GROUPS[$GROUP]}"
         NODES=( $TMP )
-        prompt_yn "Ok to $ACTION GROUP '$GROUP' for nodes: ${ACTION_GROUPS[$GROUP]}?" || unset ACTION_GROUPS[$GROUP]
+        prompt_yn "Ok to $ACTION ${#NODES[@]} $GROUP nodes?" || unset ACTION_GROUPS[$GROUP]
     done
 
     for GROUP in ${!ACTION_GROUPS[@]}; do

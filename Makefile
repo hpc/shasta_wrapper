@@ -3,7 +3,7 @@ CONFDIR			= /etc
 LIBDIR			= /usr/share/shasta_wrapper/lib
 SBINDIR			= /usr/sbin
 VERSION			= 0.12.3
-RELEASE			= 0.1
+RELEASE			= 1
 
 SOURCE			= src
 SOURCE_ETC		= $(SOURCE)/etc

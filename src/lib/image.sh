@@ -57,6 +57,7 @@ function image_help {
     echo -e "\tconfigure [image id] [group name] [config name] : build a new image configuring it"
     echo -e "\tdelete [image id] : delete a image"
     echo -e "\tdescribe [image id] : show image information"
+    echo -e "\tjob [action]: Manage image jobs"
     echo -e "\tlist : list all images"
     echo -e "\tmap [bos template] [image id] : show image information"
 

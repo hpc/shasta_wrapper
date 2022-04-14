@@ -64,6 +64,7 @@ function bos_help {
     echo -e "\tconfig [nodes|groups] : Configure the given nodes"
     echo -e "\tedit [template] : edit a bos session template"
     echo -e "\tdescribe [template] : (same as show)"
+    echo -e "\tjob [action]: Manage bos jobs"
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshutdown [template] [nodes|groups] : shutdown a given node into the given bos template"

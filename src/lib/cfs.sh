@@ -62,6 +62,7 @@ function cfs_help {
     echo -e "\tedit [cfs config] : Edit a given cfs."
     echo -e "\tdelete [cfs config] : delete the cfs"
     echo -e "\tdescribe [cfs config] : (same as show)"
+    echo -e "\tjob [action]: Manage cfs jobs"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs config] : shows all info on a given cfs"
     echo -e "\tunconf : List all unconfigured nodes"

@@ -60,6 +60,7 @@ function bos_help {
     echo    "USAGE: $0 bos [action]"
     echo    "DESC: bos sessiontemplates define the boot parameters, image, and config to use at boot. Direct access to these can be achieved via 'cray bos sessiontemplate'"
     echo    "ACTIONS:"
+    echo -e "\tboot [template] [nodes|groups] : boot a given node into the given bos template"
     echo -e "\tclone [src] [dest] : copy an existing template to a new one with a different name"
     echo -e "\tconfig [nodes|groups] : Configure the given nodes"
     echo -e "\tedit [template] : edit a bos session template"

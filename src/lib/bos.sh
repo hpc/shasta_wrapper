@@ -223,7 +223,13 @@ function bos_action {
     shift
     local TEMPLATE="$1"
     shift
-    convert2xname "$@"
+    if [[ "$@" ]]; then
+        convert2xname "$@"
+    else
+        echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
+        exit 1
+    fi
+        
     local TARGET=( $RETURN )
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
@@ -232,10 +238,6 @@ function bos_action {
     cluster_defaults_config
     cfs_clear_node_counters "${TARGET[@]}"
 
-    if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
-        echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
-        exit 1
-    fi
     bos_exit_if_not_valid "$TEMPLATE"
     KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
     if [[ -z "$KUBE_JOB_ID" ]]; then

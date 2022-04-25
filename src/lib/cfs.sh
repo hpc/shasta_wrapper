@@ -216,15 +216,14 @@ function cfs_clear_node_counters {
     local NODE i COUNT JOBS
 
     for NODE in "${NODES[@]}"; do
-        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1 &
-        cray cfs components update --enabled true "$node" > /dev/null 2>&1 &
+        cray cfs components update --error-count 0 "$node" --enabled true > /dev/null 2>&1 &
     done
 
     i=0
     while [[ "$i" -lt "${#NODES[@]}" ]]; do
         JOBS=$(jobs -r | wc -l)
         COUNT="${#NODES[@]}"
-        ((i=$COUNT - $JOBS /2))
+        ((i=$COUNT - $JOBS))
         echo -en "\rUpdating node state: $i/${#NODES[@]}"
         sleep 2
     done

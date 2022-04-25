@@ -62,7 +62,7 @@ function bos_help {
     echo    "ACTIONS:"
     echo -e "\tboot [template] [nodes|groups] : boot a given node into the given bos template"
     echo -e "\tclone [src] [dest] : copy an existing template to a new one with a different name"
-    echo -e "\tconfig [nodes|groups] : Configure the given nodes"
+    echo -e "\tconfig [template] [nodes|groups] : Configure the given nodes with the given bos template"
     echo -e "\tedit [template] : edit a bos session template"
     echo -e "\tdescribe [template] : (same as show)"
     echo -e "\tjob [action]: Manage bos jobs"

@@ -220,7 +220,8 @@ function cfs_clear_node_counters {
     done
 
     i=0
-    while [[ "$i" -lt "${#NODES[@]}" ]]; do
+    JOBS=99
+    while [[ "$JOBS" -le "0" ]]; do
         JOBS=$(jobs -r | wc -l)
         COUNT="${#NODES[@]}"
         ((i=$COUNT - $JOBS))

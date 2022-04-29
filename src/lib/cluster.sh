@@ -40,8 +40,8 @@ function cluster_defaults_config {
             die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
         fi
 
-	if [[ -n "${!CONFIG_DEFAULT[$GROUP]}" ]]; then
-	    CUR_IMAGE_CONFIG[$group]="${!CONFIG_DEFAULT[$GROUP]}"
+	if [[ -n "${CONFIG_DEFAULT[$group]}" ]]; then
+	    CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
 	else
             CUR_IMAGE_CONFIG[$group]=$(echo "$BOS" | jq '.cfs.configuration' | sed 's/"//g')
 	fi

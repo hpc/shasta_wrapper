@@ -49,15 +49,15 @@ function group_help {
     echo    "USAGE: $0 group [action]"
     echo    "DESC: shows the node groups information and what configurations, bos sessiontemplates, and images are used for each(details)"
     echo    "ACTIONS:"
-    echo -e "\tboot [group] : Boots the nodes in the given group with the group's default bos template."
-    echo -e "\tconfig [group] : Configures the nodes in the given group with the group's default cfs config."
+    echo -e "\tboot [group list] : Boots the nodes in the given group with the group's default bos template."
+    echo -e "\tconfig [group list] : Configures the nodes in the given group with the group's default cfs config."
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
-    echo -e "\treboot [group] : Reboots the given group into it's default bos template."
+    echo -e "\treboot [group list] : Reboots the given group into it's default bos template."
     echo -e "\tshow : show details on a specific node group"
     echo -e "\tsummary <-v> : show all groups and their general configs"
-    echo -e "\tshutdown [group] : shutdown all nodes in the group"
+    echo -e "\tshutdown [group list] : shutdown all nodes in the group"
 
     exit 1
 }
@@ -75,20 +75,22 @@ function group_list {
 
 function group_action {
     local ACTION="$1"
-    local GROUP="$2"
-    local NODES=""
-    if [[ -z "$GROUP" ]]; then
+    shift
+    local GROUP_LIST=( "$@" )
+    local NODES GROUP
+    if [[ -z "${GROUP_LIST[@]}" ]]; then
         echo "USAGE: $0 group $ACTION [group]" 1>&2
         exit 1
     fi
     refresh_ansible_groups
 
-
-    if [[ -z "${GROUP2NODES[$GROUP]}" ]]; then
-        die "Group '$GROUP' is not a valid group" 1>&2
-    fi
-    NODES="${GROUP2NODES[$GROUP]}"
-    node_action "$ACTION" $NODES
+    for GROUP in "${GROUP_LIST[@]}"; do
+        if [[ -z "${GROUP2NODES[$GROUP]}" ]]; then
+            die "Group '$GROUP' is not a valid group" 1>&2
+        fi
+        NODES="${GROUP2NODES[$GROUP]}"
+        node_action "$ACTION" $NODES
+    done
 }
 
 function refresh_ansible_groups {

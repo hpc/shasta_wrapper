@@ -102,6 +102,10 @@ function bos_get_default_node_group {
             RETURN="$GROUP"
             return
         fi
+        if [[ -n "${CONFIG_DEFAULT[$GROUP]}" ]]; then
+            RETURN="$GROUP"
+            return
+        fi
     done
     die "Error. Node '$NODE' is not a member of any group defined for 'BOS_DEFAULT' in /etc/cluster_defaults.conf"
 }

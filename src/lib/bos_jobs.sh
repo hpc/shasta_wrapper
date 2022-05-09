@@ -101,12 +101,23 @@ function bos_job_describe {
 
 function bos_job_delete {
     local JOBS=( "$@" )
-    local job
+    local job comp
 
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_bos_jobs
         JOBS=( "${BOS_JOBS[@]}" )
         prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
+    elif [[ "${JOBS[0]}" == "--complete" ]]; then
+        refresh_bos_jobs
+        JOBS=( )
+        ALL_JOBS=( "${BOS_JOBS[@]}" )
+        for job in "${BOS_JOBS[@]}"; do
+            comp=`cray bos session describe $job --format json | jq 'select(.complete == true) .error_count'`
+            if [ "$comp" = "0" ]; then
+                JOBS+=( "$job" )
+            fi
+        done
+        prompt_yn "Would you really like to delete all completed jobs(${#JOBS[@]})?" || exit 0
     fi
 
     for job in "${JOBS[@]}"; do

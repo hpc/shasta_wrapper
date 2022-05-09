@@ -88,6 +88,8 @@ function group_action {
         if [[ -z "${GROUP2NODES[$GROUP]}" ]]; then
             die "Group '$GROUP' is not a valid group" 1>&2
         fi
+    done
+    for GROUP in "${GROUP_LIST[@]}"; do
         NODES="${GROUP2NODES[$GROUP]}"
         node_action "$ACTION" $NODES
     done

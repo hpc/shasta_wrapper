@@ -34,7 +34,7 @@ function bos_job_help {
     echo    "USAGE: $0 bos job [action]"
     echo    "DESC: control jobs launched by bos"
     echo    "ACTIONS:"
-    echo -e "\tdelete [job] : delete the bos"
+    echo -e "\tdelete <--all|--complete> <job> : delete all, completed or specified bos jobs"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist <-s> : list bos jobs"
     echo -e "\tshow [job] : shows all info on a given bos"

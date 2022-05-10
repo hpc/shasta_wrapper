@@ -1,0 +1,7 @@
+#!/bin/bash
+if [[ -z "$@" ]]; then
+    echo "USAGE: $0 [nodelist]"
+    exit 1
+fi
+set -e
+shasta node 2xname "$@" | sed 's/ /\n/'

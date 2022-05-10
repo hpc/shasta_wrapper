@@ -39,6 +39,10 @@ rm -r %{buildroot} || true
 %files
 %defattr(-,root,root)
 %attr(0750,root,root) %SBINDIR%/shasta
+%attr(0750,root,root) %SBINDIR%/xnamepower
+%attr(0750,root,root) %SBINDIR%/conman
+%attr(0750,root,root) %SBINDIR%/nid2xname
+%attr(0750,root,root) %SBINDIR%/xname2nid
 %config(noreplace) %attr(0640,root,root) %CONFDIR%/cluster_defaults.conf
 %config(noreplace) %attr(0640,root,root) %CONFDIR%/cfs_defaults.conf
 %attr(0640,root,root) %LIBDIR%/*

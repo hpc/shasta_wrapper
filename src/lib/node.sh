@@ -70,7 +70,7 @@ function node_help {
 }
 
 function node_2xname {
-    if [[ -n "$@" ]]; then
+    if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2xname [node list]"
         exit 1
     fi
@@ -79,7 +79,7 @@ function node_2xname {
 }
 
 function node_2nid {
-    if [[ -n "$@" ]]; then
+    if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2nid [node list]"
         exit 1
     fi
@@ -88,7 +88,7 @@ function node_2nid {
 }
 
 function node_2fullnid {
-    if [[ -n "$@" ]]; then
+    if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2fullnid [node list]"
         exit 1
     fi

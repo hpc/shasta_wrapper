@@ -62,6 +62,7 @@ function cfs_help {
     echo -e "\tedit [cfs config] : Edit a given cfs."
     echo -e "\tdelete [cfs config] : delete the cfs"
     echo -e "\tdescribe [cfs config] : (same as show)"
+    echo -e "\tjob [action]: Manage cfs jobs"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs config] : shows all info on a given cfs"
     echo -e "\tunconf : List all unconfigured nodes"
@@ -214,16 +215,17 @@ function cfs_clear_node_counters {
     local NODES=( "$@" )
     local NODE i COUNT JOBS
 
+    disown -a
     for NODE in "${NODES[@]}"; do
-        cray cfs components update --error-count 0 "$node" > /dev/null 2>&1 &
-        cray cfs components update --enabled true "$node" > /dev/null 2>&1 &
+        cray cfs components update --error-count 0 "$node" --enabled true > /dev/null 2>&1 &
     done
 
     i=0
-    while [[ "$i" -lt "${#NODES[@]}" ]]; do
+    JOBS=99
+    while [[ "$JOBS" -gt "0" ]]; do
         JOBS=$(jobs -r | wc -l)
         COUNT="${#NODES[@]}"
-        ((i=$COUNT - $JOBS /2))
+        ((i=$COUNT - $JOBS))
         echo -en "\rUpdating node state: $i/${#NODES[@]}"
         sleep 2
     done

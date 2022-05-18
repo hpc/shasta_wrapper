@@ -34,7 +34,7 @@ function bos_job_help {
     echo    "USAGE: $0 bos job [action]"
     echo    "DESC: control jobs launched by bos"
     echo    "ACTIONS:"
-    echo -e "\tdelete [job] : delete the bos"
+    echo -e "\tdelete <--all|--complete> <job> : delete all, completed or specified bos jobs"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist <-s> : list bos jobs"
     echo -e "\tshow [job] : shows all info on a given bos"
@@ -101,12 +101,23 @@ function bos_job_describe {
 
 function bos_job_delete {
     local JOBS=( "$@" )
-    local job
+    local job comp
 
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_bos_jobs
         JOBS=( "${BOS_JOBS[@]}" )
         prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
+    elif [[ "${JOBS[0]}" == "--complete" ]]; then
+        refresh_bos_jobs
+        JOBS=( )
+        ALL_JOBS=( "${BOS_JOBS[@]}" )
+        for job in "${BOS_JOBS[@]}"; do
+            comp=`cray bos session describe $job --format json | jq 'select(.complete == true) .error_count'`
+            if [ "$comp" = "0" ]; then
+                JOBS+=( "$job" )
+            fi
+        done
+        prompt_yn "Would you really like to delete all completed jobs(${#JOBS[@]})?" || exit 0
     fi
 
     for job in "${JOBS[@]}"; do

@@ -60,10 +60,12 @@ function bos_help {
     echo    "USAGE: $0 bos [action]"
     echo    "DESC: bos sessiontemplates define the boot parameters, image, and config to use at boot. Direct access to these can be achieved via 'cray bos sessiontemplate'"
     echo    "ACTIONS:"
+    echo -e "\tboot [template] [nodes|groups] : boot a given node into the given bos template"
     echo -e "\tclone [src] [dest] : copy an existing template to a new one with a different name"
-    echo -e "\tconfig [nodes|groups] : Configure the given nodes"
+    echo -e "\tconfig [template] [nodes|groups] : Configure the given nodes with the given bos template"
     echo -e "\tedit [template] : edit a bos session template"
     echo -e "\tdescribe [template] : (same as show)"
+    echo -e "\tjob [action]: Manage bos jobs"
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshutdown [template] [nodes|groups] : shutdown a given node into the given bos template"
@@ -97,6 +99,10 @@ function bos_get_default_node_group {
     GROUP_LIST="${NODE2GROUP[$NODE]}"
     for GROUP in $GROUP_LIST; do
         if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
+            RETURN="$GROUP"
+            return
+        fi
+        if [[ -n "${CONFIG_DEFAULT[$GROUP]}" ]]; then
             RETURN="$GROUP"
             return
         fi
@@ -221,7 +227,13 @@ function bos_action {
     shift
     local TEMPLATE="$1"
     shift
-    convert2xname "$@"
+    if [[ "$@" ]]; then
+        convert2xname "$@"
+    else
+        echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
+        exit 1
+    fi
+        
     local TARGET=( $RETURN )
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
@@ -230,10 +242,6 @@ function bos_action {
     cluster_defaults_config
     cfs_clear_node_counters "${TARGET[@]}"
 
-    if [[ -z "$TEMPLATE" || -z "$TARGET" ]]; then
-        echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
-        exit 1
-    fi
     bos_exit_if_not_valid "$TEMPLATE"
     KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
     if [[ -z "$KUBE_JOB_ID" ]]; then

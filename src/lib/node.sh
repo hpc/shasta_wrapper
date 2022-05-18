@@ -1,8 +1,20 @@
 function node {
     case "$1" in
+        2nid)
+            shift
+            node_2nid "$@"
+            ;;
+        2fullnid)
+            shift
+            node_2fullnid "$@"
+            ;;
+        2xname)
+            shift
+            node_2xname "$@"
+            ;;
         boot)
             shift
-            node_ boot "$@"
+            node_action boot "$@"
             ;;
         con*)
             shift
@@ -42,8 +54,11 @@ function node_help {
     echo    "USAGE: $0 node [action]"
     echo    "DESC: shows the node groups information and what configurations, bos sessiontemplates, and images are used for each(details)"
     echo    "ACTIONS:"
-    echo -e "\tboot [nodes space seperated] : Boots all nodes that are not booted into the given group's default bos template."
-    echo -e "\tconfig [nodes space seperated] : Configures all nodes that are not booted with the given group's default cfs config."
+    echo -e "\t2nid [nodes] : Convert given nodes to nid numbers."
+    echo -e "\t2fullnid [nodes] : Convert given nodes to nidXXXXXX format."
+    echo -e "\t2xname [nodes] : Convert given nodes to xname format."
+    echo -e "\tboot [nodes space seperated] : Boots the given nodes into the given group's default bos template."
+    echo -e "\tconfig [nodes space seperated] : Configures the given nodes with the given group's default cfs config."
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
@@ -53,6 +68,34 @@ function node_help {
 
     exit 1
 }
+
+function node_2xname {
+    if [[ -z "$@" ]]; then
+        echo "USAGE: $0 node 2xname [node list]"
+        exit 1
+    fi
+    convert2xname "$@"
+    echo "$RETURN"
+}
+
+function node_2nid {
+    if [[ -z "$@" ]]; then
+        echo "USAGE: $0 node 2nid [node list]"
+        exit 1
+    fi
+    convert2nid "$@"
+    echo "$RETURN"
+}
+
+function node_2fullnid {
+    if [[ -z "$@" ]]; then
+        echo "USAGE: $0 node 2fullnid [node list]"
+        exit 1
+    fi
+    convert2fullnid "$@"
+    echo "$RETURN"
+}
+
 function node_list {
     refresh_ansible_groups
     for GROUP in "${!GROUP2NODES[@]}"; do

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+case "$1" in
+nid*)
+  xname=$(nid2xname $1)
+  ;;
+x*)
+  xname=$1
+  ;;
+*)
+  echo "Do not understand $1" 1>&2
+  exit 1
+  ;;
+esac
+
+conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-conman -o jsonpath='{.items[].metadata.name}')
+exec kubectl -n services exec -it $conpod -c cray-conman -- conman -j ${xname}

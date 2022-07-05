@@ -4,6 +4,7 @@ declare -A CFS_BRANCH CFS_URL CFS_BRANCH_DEFAULT
 CONFIG_DIR="/root/templates/cfs_configurations/"
 GIT_USER=""
 GIT_PASSWD=""
+mkdir -p $CONFIG_DIR
 
 function cfs {
     case "$1" in

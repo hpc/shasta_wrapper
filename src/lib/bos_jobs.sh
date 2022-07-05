@@ -134,7 +134,7 @@ function bos_job_log {
         exit 1
     fi
 
-    KUBE_JOB_ID=$(bos_job_describe "$JOB" | grep boa_job_name | awk '{print $3}' | sed 's/"//g')
+    KUBE_JOB_ID=$(bos_job_describe "$JOB" --format json | jq .job | sed 's/"//g')
 
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to find bos job $JOB"

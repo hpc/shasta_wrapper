@@ -4,6 +4,7 @@ declare -A CFS_BRANCH CFS_URL CFS_BRANCH_DEFAULT
 CONFIG_DIR="/root/templates/cfs_configurations/"
 GIT_USER=""
 GIT_PASSWD=""
+mkdir -p $CONFIG_DIR
 
 function cfs {
     case "$1" in
@@ -252,8 +253,8 @@ function cfs_log_job {
     fi
 
     set -e
-    cmd_wait_output "job" cray cfs sessions describe "$CFS"
-    JOB=$(cray cfs sessions describe "$CFS" | grep job | awk '{print $3}' | sed 's/"//g')
+    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
+    JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
 
     cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB"
     POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')

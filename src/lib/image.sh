@@ -299,7 +299,13 @@ function image_build_bare {
     set +e
     cmd_wait_output "success|error" cray ims jobs describe $IMS_JOB_ID
 
-    IMAGE_ID=$(cray ims jobs describe $IMS_JOB_ID | grep 'resultant_image_id' | awk '{print $3}' | sed 's/"//g' )
+    cray ims jobs describe $IMS_JOB_ID | grep "status" | grep -q 'success'
+    if [[ "$?" -ne 0 ]]; then
+        echo "[$GROUP_NAME] Error image build failed! See logs for details"
+        die "[$GROUP_NAME] Error image build failed! See logs for details"
+    fi
+
+    IMAGE_ID=$(cray ims jobs describe $IMS_JOB_ID  --format json | jq .resultant_image_id | sed 's/"//g' )
     echo "  Grabbing image_id = '$IMAGE_ID' from output..."
 
     verbose_cmd cray ims images describe "$IMAGE_ID" > /dev/null 2>&1
@@ -459,7 +465,7 @@ function image_configure {
         die "[$GROUP_NAME] cfs session creation failed! See logs for details"
     fi
 
-    cmd_wait_output "job =" cray cfs sessions describe "$SESSION_NAME"
+    cmd_wait_output "job" cray cfs sessions describe "$SESSION_NAME"
 
     JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
     cfs_log_job "$SESSION_NAME"

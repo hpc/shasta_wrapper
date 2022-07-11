@@ -1,4 +1,6 @@
-#!/bin/bash
+## cfs library
+# Contains all commands for `shasta cfs`
+# Used for managing what configurations to apply to images/nodes.
 
 declare -A CFS_BRANCH CFS_URL CFS_BRANCH_DEFAULT
 CONFIG_DIR="/root/templates/cfs_configurations/"

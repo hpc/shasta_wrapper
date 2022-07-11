@@ -1,3 +1,6 @@
+## recipe library
+# Contains all commands for `shasta recipe`
+# Commands for retrieving and modifying recipes for building images
 
 declare -A RECIPE_ID2NAME
 declare -A RECIPE_ID2CREATED

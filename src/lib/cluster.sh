@@ -1,4 +1,7 @@
-#!/bin/bash
+## cluster library
+# Contains all commands for `shasta cluster`, and cluster helper functions
+# Just contains some helper functions and the ability to check the configuration to see if it appears valid.
+
 declare -A BOS_DEFAULT CONFIG_DEFAULT RECIPE_DEFAULT IMAGE_DEFAULT_NAME CUR_IMAGE_ID CUR_IMAGE_NAME CUR_IMAGE_ETAG CUR_IMAGE_CONFIG IMAGE_GROUPS
 CLUSTER_GROUPS=( )
 

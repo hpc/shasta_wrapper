@@ -1,3 +1,7 @@
+## Bos Job library
+# Contains all commands for `shasta bos job`
+# This includes all bos job actions. Each bos job is an action that bos attempts to perform such as rebooting or confuguring a node. Largely used for rebooting nodes, often via the group or node libraries.
+
 
 BOS_JOBS=( )
 BOS_JOBS_RAW=""

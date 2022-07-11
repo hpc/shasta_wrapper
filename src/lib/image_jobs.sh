@@ -1,3 +1,6 @@
+## image job library
+# Contains all commands for `shasta image job`
+# Commands for managing image build and configure jobs (note that for configuration jobs it's both a ims job and a cfs job)
 
 IMS_JOBS_RAW=""
 

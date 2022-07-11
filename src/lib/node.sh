@@ -1,3 +1,7 @@
+## node library
+# Contains all commands for `shasta node`
+# Actions for describing and performing actions against nodes
+
 function node {
     case "$1" in
         2nid)

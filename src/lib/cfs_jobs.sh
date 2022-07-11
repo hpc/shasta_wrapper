@@ -1,3 +1,6 @@
+## cfs job library
+# Contains all commands for `shasta cfs job`
+# Used for managing cfs actions to configure nodes or images.
 
 CFS_JOBS_RAW=""
 

@@ -1,3 +1,6 @@
+## image library
+# Contains all commands for `shasta image`
+# Commands for listing and building images
 
 declare -A IMAGE_ID2NAME
 declare -A IMAGE_ID2CREATED

@@ -1,3 +1,6 @@
+## common library
+# Contains common functions used in the shasta wrapper
+
 TMPDIR=""
 
 COLOR_RED=$(echo '\033[0;31m')

@@ -1,3 +1,7 @@
+## group library
+# Contains all commands for `shasta group`
+# largely commands for getting information and performing actions against the ansible groups
+
 declare -A NODE2GROUP GROUP2NODES
 
 

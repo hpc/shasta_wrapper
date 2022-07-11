@@ -1,3 +1,6 @@
+## bos library
+# Contains all commands for `shasta bos`
+# This includes all bos job actions. Largely used for configuring bos and launching bos jobs to reboot/configure nodes.
 
 BOS_CONFIG_DIR="/root/templates/"
 BOS_TEMPLATES=( )

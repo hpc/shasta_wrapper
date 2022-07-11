@@ -13,9 +13,11 @@ x*)
   ;;
 esac
 
-conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-console-node -o jsonpath='{.items[].metadata.name}') 2> /dev/null
+conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-console-node -o jsonpath='{.items[].metadata.name}' 2> /dev/null)
+CONTAINER=cray-console-node
 if [[ -z "$conpod" ]]; then
     conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-conman -o jsonpath='{.items[].metadata.name}')
+    CONTAINER=cray-conman
 fi
 if [[ -z "$conpod" ]]; then
     echo "ERROR! conman pod can't be located!"
@@ -23,4 +25,4 @@ if [[ -z "$conpod" ]]; then
 fi
 
 
-exec kubectl -n services exec -it $conpod -c cray-conman -- conman -j ${xname}
+exec kubectl -n services exec -it $conpod -c $CONTAINER -- conman -j ${xname}

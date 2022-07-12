@@ -66,6 +66,8 @@ function group_help {
     exit 1
 }
 
+## group_list
+# List out the ansible groups that have defaults set
 function group_list {
     local group
     cluster_defaults_config
@@ -77,6 +79,8 @@ function group_list {
     done | sort
 }
 
+## group_action
+# Perform an action against all nodes in a given group (ie reboot them)
 function group_action {
     local ACTION="$1"
     shift
@@ -99,6 +103,8 @@ function group_action {
     done
 }
 
+## refresh_ansible_groups
+# Get the ansible groups from /etc/ansible/hosts
 function refresh_ansible_groups {
     local ANSIBLE_LINES LINE SPLIT GROUP
     cluster_defaults_config
@@ -122,6 +128,8 @@ function refresh_ansible_groups {
     done
 }
 
+## group_describe
+# Show the group information
 function group_describe {
     local NO_NODES=0
     if [[ "$1" == "-q" ]]; then
@@ -170,7 +178,8 @@ function group_describe {
     fi
 }
 
-
+## group_build_images
+# build images for a given group or all the ones with defaults defined
 function group_build_images {
     local MAP="1"
     if [[ "$1" == "--map" ]]; then
@@ -225,6 +234,8 @@ function group_build_images {
 
 }
 
+## group_summary
+# Show all of the groups and the nodes assigned to them. Optionally map them to their default bos config.
 function group_summary {
     local ARGS='-q'
     if [[ "$1" == "-v" ]]; then

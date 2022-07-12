@@ -46,6 +46,8 @@ function bos_job_help {
     exit 1
 }
 
+## refresh_bos_jobs
+# Refresh current job info from bos
 function refresh_bos_jobs {
     if [[ -n "${BOS_JOBS[0]}" && "$1" != "--force" ]]; then
         return
@@ -59,20 +61,8 @@ function refresh_bos_jobs {
     done
 }
 
-function refresh_bos_jobs_raw {
-    local JOB
-    if [[ -n "$BOS_JOBS_RAW" && "$1" != "--force" ]]; then
-        return
-    fi
-    refresh_bos_jobs $1
-
-    BOS_JOBS_RAW=$(for JOB in "${BOS_JOBS[@]}"; do
-        cray bos session describe $JOB --format json
-    done)
-    return $?
-}
-
-
+## bos_job_list
+# List out the bos jobs. This gets the list of all bos jobs, then gets information on them one at a time, so this can be very expensive. Thus the -s option is also prodived to just get the list of bos job ids as it's just one query.
 function bos_job_list {
     local JOB
     refresh_bos_jobs
@@ -99,37 +89,72 @@ function bos_job_list {
     fi
 }
 
+## bos_job_describe
+# describe the bos job
 function bos_job_describe {
+    if [[ -z "$1" ]]; then
+        echo "USAGE: $0 bos job delete [jobid]"
+	return 1
+    fi
     cray bos session describe "$1"
+    return $?
 }
 
+## bos_job_delete
+# Delete the given bos jobs
 function bos_job_delete {
     local JOBS=( "$@" )
     local job comp
 
-    if [[ "${JOBS[0]}" == "--all" ]]; then
-        refresh_bos_jobs
-        JOBS=( "${BOS_JOBS[@]}" )
-        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
-    elif [[ "${JOBS[0]}" == "--complete" ]]; then
-        refresh_bos_jobs
-        JOBS=( )
-        ALL_JOBS=( "${BOS_JOBS[@]}" )
-        for job in "${BOS_JOBS[@]}"; do
-            comp=`cray bos session describe $job --format json | jq 'select(.complete == true) .error_count'`
-            if [ "$comp" = "0" ]; then
-                JOBS+=( "$job" )
-            fi
-        done
-        prompt_yn "Would you really like to delete all completed jobs(${#JOBS[@]})?" || exit 0
+    # Handle options
+    if [[ "$1" == "--"* ]]; then
+        if [[ "${JOBS[0]}" == "--all" ]]; then
+            refresh_bos_jobs
+            JOBS=( "${BOS_JOBS[@]}" )
+            prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
+        elif [[ "${JOBS[0]}" == "--complete" ]]; then
+            refresh_bos_jobs
+            JOBS=( )
+           ALL_JOBS=( "${BOS_JOBS[@]}" )
+            for job in "${BOS_JOBS[@]}"; do
+                comp=`cray bos session describe $job --format json | jq 'select(.complete == true) .error_count'`
+                if [ "$comp" = "0" ]; then
+                    JOBS+=( "$job" )
+                fi
+            done
+            prompt_yn "Would you really like to delete all completed jobs(${#JOBS[@]})?" || exit 0
+        else
+            echo "Invalid argument '$1'"
+            JOBS=( )
+        fi
     fi
 
+    # Display help if no options given
+    if [[ -z "${JOBS[@]}" ]]; then
+        echo -e "USAGE: shasta bos job delete <OPTIONS> <Job list>"
+	echo -e "OPTIONS:"
+	echo -e "\t--all: delete all bos jobs"
+	echo -e "\t--complete: delete all complete bos jobs (Can take some time to run)"
+	return 1
+    fi
+
+    # Delete the jobs
     for job in "${JOBS[@]}"; do
         verbose_cmd cray bos session delete $job
         sleep 2
     done
 }
+## bos_job_exit_if_not_valid
+# Exit if the given bos template isn't valid (most likely it doesn't exist)
+function bos_job_exit_if_not_valid {
+    bos_job_describe "$1" > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        die "Error! $1 is not a valid bos job."
+    fi
+}
 
+## bos_job_log
+# Get logs from a bos job
 function bos_job_log {
     JOB="$1"
 
@@ -137,6 +162,7 @@ function bos_job_log {
         echo "USAGE: $0 bos job log <bos job id>"
         exit 1
     fi
+    bos_job_exit_if_not_valid "$JOB"
 
     KUBE_JOB_ID=$(bos_job_describe "$JOB" --format json | jq .job | sed 's/"//g')
 

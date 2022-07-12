@@ -67,6 +67,8 @@ function image_help {
     exit 1
 }
 
+## refresh_images
+# Get the image data from ims
 function refresh_images {
     local RAW image
     echo "# cray ims images list --format json | jq '.[] | \"\\(.created)   \\(.id)   \\(.name)\"' | sed 's/\"//g' | sort"
@@ -85,6 +87,8 @@ function refresh_images {
     done
 }
 
+## image_list
+# List out the images
 function image_list {
     local id name created group
     image_defaults
@@ -102,10 +106,14 @@ function image_list {
     done | sort
 }
 
+## image_describe
+# show inormation on the given image
 function image_describe {
     verbose_cmd cray ims images describe "$1"
 }
 
+## image_delete
+# delete the given image
 function image_delete {
     if [[ -z "$1" ]]; then
         echo "USAGE: $0 image delete [image1] <images...>" 1>&2
@@ -118,6 +126,8 @@ function image_delete {
     image_clean_deleted_artifacts
 }
 
+## image_build
+# Build a bare image from recipe, and configure it via cfs.
 function image_build {
     local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE
     OPTIND=1
@@ -155,7 +165,7 @@ function image_build {
         shift
     fi
 
-    if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "CONFIG_NAME" ]]; then
+    if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "$CONFIG_NAME" ]]; then
         echo "USAGE: $0 image build <OPTIONS> [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
         echo "OPTIONS:"
         echo -e "\t -c <cfs config> - Configure the image with this cfs configuration"
@@ -213,6 +223,8 @@ function image_build {
     fi
 }
 
+## image_map
+# Set the given image to be used in the bos template
 function image_map {
     local BOS_TEMPLATE="$1"
     local IMAGE_ID="$2"
@@ -230,11 +242,11 @@ function image_map {
         die "etag could not be found for image: '$IMAGE_ID'. Did you provide a valid image id?"
     fi
 
-    bos_update_template "$BOS_TEMPLATE" ".boot_sets.compute.etag" "$IMAGE_ETAG"
+    bos_update_template "$BOS_TEMPLATE" ".boot_sets[].etag" "$IMAGE_ETAG"
     if [[ $? -ne 0 ]]; then
         die "Failed to map image id '$IMAGE_ID' to bos template '$BOS_TEMPLATE'" 1>&2
     fi
-    bos_update_template "$BOS_TEMPLATE" ".boot_sets.compute.path" "$IMAGE_PATH"
+    bos_update_template "$BOS_TEMPLATE" ".boot_sets[].path" "$IMAGE_PATH"
     if [[ $? -ne 0 ]]; then
         die "Failed to map image id '$IMAGE_ID' to bos template '$BOS_TEMPLATE'" 1>&2
     fi
@@ -246,6 +258,8 @@ function image_map {
     return 0
 }
 
+## image_build_bare
+# build a bare image from a recipe
 function image_build_bare {
     local RECIPE_ID=$1
     local NEW_IMAGE_NAME=$2
@@ -326,14 +340,14 @@ function image_build_bare {
     return 0
 }
 
+## image_logwatch
+# Watch logs for building image kube job
 function image_logwatch {
     KUBE_JOB="$1"
 
     sleep 3
     cmd_wait_output "SuccessfulCreate" kubectl describe job -n ims $KUBE_JOB
     POD_ID=$(kubectl describe job -n ims $JOB_ID | grep SuccessfulCreate | awk '{print $7}')
-    echo "  Grabbing pod_id = '$POD' from output..."
-
 
     verbose_cmd kubectl describe job -n ims $JOB_ID | grep -q 'Pods Statuses:  0 Running / 1 Succeeded'
     RET=$?
@@ -345,13 +359,13 @@ function image_logwatch {
     echo "################################################"
     echo "#### INFO"
     echo "################################################"
-    echo "IMS SESSION:    $IMS_JOB_ID"
-    echo "KUBERNETES JOB: $JOB_ID"
+    echo "KUBERNETES JOB: $KUBE_JOB"
     echo "KUBERNETES POD: $POD_ID"
     echo "################################################"
     echo "#### END INFO"
     echo "################################################"
 
+    # Get list of init containers
     INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n ims -o json |\
         jq '.metadata.managedFields' |\
         jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
@@ -362,6 +376,7 @@ function image_logwatch {
         sed 's|\\"}"||g' | \
         sed 's/,//g') )
 
+    # Get list of regular containers
     CONTAIN=( $(kubectl get pods $POD_ID -n ims -o json |\
         jq '.metadata.managedFields' |\
         jq '.[].fieldsV1."f:spec"."f:containers"' |\
@@ -385,6 +400,8 @@ function image_logwatch {
         fi
     done
 
+    # Because the kiwi logs are far more usefull to debugging image builds than 
+    # the actual container logs, we go into the container and read from that instead
     echo
     echo
     echo "#################################################"
@@ -400,6 +417,8 @@ function image_logwatch {
 
 }
 
+## image_configure
+# Configure an image with cfs
 function image_configure {
     local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP OPTIND
     OPTIND=1
@@ -417,12 +436,6 @@ function image_configure {
     local CONFIG_NAME=$3
     cluster_defaults_config
 
-    local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
-
-    if [[ -z "$SESSION_NAME" ]]; then
-        SESSION_NAME="$GROUP_SANITIZED"`date +%M`
-    fi
-
     if [[ -z "$IMAGE_ID" || -z "$GROUP_NAME" || -z "$CONFIG_NAME" ]]; then
         echo "USAGE: $0 image config <OPTIONS> [image id] [group name] [config name]"
         echo "OPTIONS:"
@@ -430,6 +443,7 @@ function image_configure {
         exit 1
     fi
 
+    ## Validate group name
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
     if [[ -z "$EX_HOST" ]]; then
         echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
@@ -442,9 +456,22 @@ function image_configure {
         IMAGE_GROUP="$GROUP_NAME"
     fi
 
+    ## Setup cfs job id
+    # We need a group that's lowercase and only containers certain characters 
+    # that cfs accepts to use it as the cfs job id
+    local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
 
+    if [[ -z "$SESSION_NAME" ]]; then
+        SESSION_NAME="$GROUP_SANITIZED"`date +%M`
+    fi
+
+    # Delete any existing cfs session that has the same 
+    # name to ensure we don't screw things up
     cray cfs sessions delete "$SESSION_NAME" > /dev/null 2>&1
 
+    ## Launch the cfs configuration job. 
+    # We try multiple times as sometimes cfs is in a bad state and won't 
+    # respond (usually responds eventually)
     RETRIES=20
     RET=1
     TRIES=0
@@ -468,6 +495,8 @@ function image_configure {
         die "[$GROUP_NAME] cfs session creation failed! See logs for details"
     fi
 
+    ## Show the logs for the cfs configure job
+    #
     cmd_wait_output "job" cray cfs sessions describe "$SESSION_NAME"
 
     JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
@@ -480,6 +509,9 @@ function image_configure {
         echo "[$GROUP_NAME] image configuation failed"
         die "[$GROUP_NAME] image configuation failed"
     fi
+
+    ## Validate that we got an image and set that as the RETURN so that if 
+    # parent function wants it it can use it
 
     NEW_IMAGE_ID=$(cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.artifacts[0].result_id' | sed 's/"//g')
 
@@ -500,6 +532,8 @@ function image_configure {
     return 0
 }
 
+## image_clean_deleted_artifacts
+# when telling ims to delete an image, it just marks the artifact as deleted instead of actually deleting it. Thus this goes and deletes any boot-image artifacts marked as deleted.
 function image_clean_deleted_artifacts {
     local ARTIFACTS=()
     local artifact

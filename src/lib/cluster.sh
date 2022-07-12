@@ -27,8 +27,8 @@ function cluster_help {
     exit 1
 }
 
-
-
+## cluster_defaults_config
+# Grab all the defaults for each node group and set their variables
 function cluster_defaults_config {
     local IMAGE_RAW BOS
     if [[ -n "${!BOS_DEFAULT[@]}" ]]; then
@@ -48,13 +48,15 @@ function cluster_defaults_config {
 	else
             CUR_IMAGE_CONFIG[$group]=$(echo "$BOS" | jq '.cfs.configuration' | sed 's/"//g')
 	fi
-        CUR_IMAGE_ETAG[$group]=$(echo "$BOS" | jq '.boot_sets.compute.etag' | sed 's/"//g')
+        CUR_IMAGE_ETAG[$group]=$(echo "$BOS" | jq '.boot_sets[].etag' | sed 's/"//g')
     done
     for group in "${!CONFIG_DEFAULT[@]}"; do
         CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
     done
 }
 
+## image_defaults
+# Get and set the currently used images for each group and set that in the CUR_IMAGE_NAME and CUR_IMAGE_ID variables.
 function image_defaults {
     local IMAGE_RAW BOS
     if [[ -n "${!CUR_IMAGE_NAME[@]}" ]]; then
@@ -80,6 +82,8 @@ function image_defaults {
     done
 }
 
+## cluster_validate
+# Go through and check all the configuration and validate it all looks sane (check that things actually map to things that exist)
 function cluster_validate {
     local group RECIPE CONFIG
     cluster_defaults_config
@@ -95,7 +99,7 @@ function cluster_validate {
             echo
             die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
         fi
-        # Validate configuration used exists
+        # Validate cfs configuration used exists
         CONFIG=$(echo "$CONFIG_RAW" | jq ".[] | select(.name == \"${CUR_IMAGE_CONFIG[$group]}\")")
         if [[ -z "$CONFIG" ]]; then
             echo

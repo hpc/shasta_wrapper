@@ -24,10 +24,6 @@ function recipe {
             shift
             recipe_list "$@"
             ;;
-        delete)
-            shift
-            recipe_delete "$@"
-            ;;
         #edit)
         #    shift
         #    recipe_edit "$@"
@@ -51,6 +47,8 @@ function recipe_help {
     exit 1
 }
 
+## refresh_recipes
+# Gets current list of recipes
 function refresh_recipes {
     local SPLIT id created name
     if [[ -n "$RECIPE_RAW" && "$1" != '--force' ]]; then
@@ -73,6 +71,8 @@ function refresh_recipes {
     done
 }
 
+## recipe_list
+# List all available recipes
 function recipe_list {
     refresh_recipes
     cluster_defaults_config
@@ -89,6 +89,8 @@ function recipe_list {
     done | sort
 }
 
+## recipe_delete
+# Delete the given recipe
 function recipe_delete {
     local RECIPE="$1"
     if [[ -z "$RECIPE" ]]; then
@@ -98,6 +100,8 @@ function recipe_delete {
     verbose_cmd cray ims recipes delete "$RECIPE"
 }
 
+## recipe_get
+# Download the given recipe
 function recipe_get {
     local RECIPE_ID="$1"
     local FILE="$2"
@@ -121,8 +125,8 @@ function recipe_get {
     verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
 }
 
-
-
+## recipe_clone
+# Downloads the recipe, allows you to edit it, then uploads it under a new name
 function recipe_clone {
     local RECIPE_ID="$1"
     local NEW_RECIPE_NAME="$2"
@@ -179,45 +183,8 @@ function recipe_clone {
     set +x
 }
 
-function recipe_edit {
-    local RECIPE_ID="$1"
-
-    local S3_ARTIFACT_BUCKET=ims
-    local ARTIFACT_FILE
-    local RECIPE RECIPE_NAME S3_ARTIFACT_KEY NEW_RECIPE_ID
-
-    set -e
-    echo "# cray ims recipes list --format json | jq \".[] | select(.id == \\\"$RECIPE_ID\\\")\""
-    refresh_recipes
-    RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"$RECIPE_ID\")")
-
-    RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
-    ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
-    S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
-    mkdir -p $RECIPE_NAME
-    verbose_cmd cray artifacts get $S3_ARTIFACT_BUCKET $S3_ARTIFACT_KEY $ARTIFACT_FILE
-    tar -xzvf $ARTIFACT_FILE -C "$RECIPE_NAME"
-    rm -f $ARTIFACT_FILE
-
-    cd $RECIPE_NAME
-    echo "image ready for modification. 'exit' when you are done"
-    bash
-
-    verbose_cmd tar cvfz ../$NEW_ARTIFACT_FILE .
-    cd -
-
-
-    #NEW_RECIPE_ID=$(cray ims recipes create --name "$RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json | jq '.id' | sed 's/"//g')
-
-
-    verbose_cmd cray artifacts create ims recipes/$RECIPE_ID/$ARTIFACT_FILE $ARTIFACT_FILE
-    verbose_cmd cray ims recipes update $RECIPE_ID \
-        --link-type s3 \
-        --link-path s3://ims/recipes/$RECIPE_ID/$ARTIFACT_FILE
-    set +e
-    set +x
-}
-
+## recipe_create
+# create a new recipe from the given file and name
 function recipe_create {
     local NAME="$1"
     local FILE="$2"

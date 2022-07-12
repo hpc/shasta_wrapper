@@ -73,6 +73,8 @@ function node_help {
     exit 1
 }
 
+## node_2xname
+# Attempt to convert a given node name to it's xname
 function node_2xname {
     if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2xname [node list]"
@@ -82,6 +84,8 @@ function node_2xname {
     echo "$RETURN"
 }
 
+## node_2nid
+# Attempt to convert a given node name to it's nid number
 function node_2nid {
     if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2nid [node list]"
@@ -91,6 +95,8 @@ function node_2nid {
     echo "$RETURN"
 }
 
+## node_2fullnid
+# Attempt to convert a given node name to it's fullnid
 function node_2fullnid {
     if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2fullnid [node list]"
@@ -100,6 +106,8 @@ function node_2fullnid {
     echo "$RETURN"
 }
 
+## node_list
+# List out all nodes and their associated groups
 function node_list {
     refresh_ansible_groups
     for GROUP in "${!GROUP2NODES[@]}"; do
@@ -110,6 +118,8 @@ function node_list {
     done
 }
 
+## node_describe
+# Show information on a given node
 function node_describe {
     convert2xname "$@"
     local NODE="$RETURN"
@@ -167,6 +177,8 @@ function node_describe {
 
 }
 
+## node_action
+# Perform an action against a list of nodes. THis figures out the correct bos template for the node and send that to bos_action with the node list.
 function node_action {
     local ACTION="$1"
     shift
@@ -191,17 +203,21 @@ function node_action {
     cluster_defaults_config
     declare -A ACTION_GROUPS
 
+    # Organize nodes into their ansible groups that have a default bos config.
     for NODE in "${NODES[@]}"; do
         bos_get_default_node_group "$NODE"
         GROUP="$RETURN"
         ACTION_GROUPS[$GROUP]+="$NODE "
     done
+
+    # Validate that the user really wants to do $ACTION against the nodes of this group
     for GROUP in ${!ACTION_GROUPS[@]}; do
         TMP="${ACTION_GROUPS[$GROUP]}"
         NODES=( $TMP )
         prompt_yn "Ok to $ACTION ${#NODES[@]} $GROUP nodes?" || unset ACTION_GROUPS[$GROUP]
     done
 
+    # Perform the action
     for GROUP in ${!ACTION_GROUPS[@]}; do
         TMP="${ACTION_GROUPS[$GROUP]}"
         NODES=( $TMP )

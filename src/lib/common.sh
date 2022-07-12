@@ -12,12 +12,15 @@ declare -A CONVERT2NID
 declare -A CONVERT2FULLNID
 declare -A CONVERT2NMN
 
-
+## die
+# exit with return code 2 and pring the error in red
 function die {
     echo -e "${COLOR_RED}$@${COLOR_RESET}" 1>&2
     exit 2
 }
 
+## tmpdir 
+# make a demporary directory and report it's location in the RETURN variable
 function tmpdir {
     if [[ -z "$TMPDIR" ]]; then
         TMPDIR=$(mktemp -d)
@@ -25,6 +28,8 @@ function tmpdir {
     RETURN="$TMPDIR"
 }
 
+## prompt_yn
+# Prompt the user to answer a yes/no question. If ASSUME_YES is set, it will auto assume yes ignoring prompting the user.
 function prompt_yn {
     local QUESTION=$1
     shift
@@ -46,6 +51,9 @@ function prompt_yn {
     fi
 }
 
+
+## prompt
+# Prompt the user with a multiple choice question
 function prompt {
     local QUESTION=$1
     shift
@@ -65,6 +73,8 @@ function prompt {
     return $ANS
 }
 
+## cmd_wait
+# Wait for the given command to return 0
 function cmd_wait {
     local RET=1
     set +e
@@ -79,6 +89,8 @@ function cmd_wait {
     done
 }
 
+## cmd_wait_output
+# Wait for the given command to return the given output (continuiously runs the command until it gets the expected output)
 function cmd_wait_output {
     local OUTPUT=$1
     shift
@@ -96,6 +108,9 @@ function cmd_wait_output {
     echo
 }
 
+
+## verbose_cmd
+# Run the command and output the command that was run
 function verbose_cmd {
     echo
     echo
@@ -104,6 +119,8 @@ function verbose_cmd {
     return $?
 }
 
+## edit_file
+# open the given file with the given command (blocking wait)
 function edit_file {
     local FILE AFTER BEFORE
     local FILE="$1"
@@ -111,6 +128,8 @@ function edit_file {
     flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE" || die "Failed to get lock on $FILE. Someone else is modifying it"
 }
 
+## edit_file_nolock
+# Edit the given file without any locking wait with whatever EDITOR is set to, or use vim.
 function edit_file_nolock {
     local FILE AFTER BEFORE
     local FILE="$1"
@@ -129,6 +148,8 @@ function edit_file_nolock {
     return 0
 }
 
+## get_node_conversions
+# Setup node conversions for all different node names and types (ie xname to nid) if it hasn't been done already.
 function get_node_conversions {
     if [[ ! -f "$NODE_CONVERSION_FILE" ]]; then
         refresh_sat_data
@@ -138,6 +159,8 @@ function get_node_conversions {
     fi
 }
 
+## refresh_sat_data
+# Pull down all the data from sat and use it to build a table of all conversion information (is nid to xname)
 function refresh_sat_data {
     local SAT_FILE=/usr/share/shasta_wrapper/sat.out
 
@@ -176,6 +199,9 @@ function refresh_sat_data {
         echo "CONVERT2NMN[$NMN]=$NMN" >> "$NODE_CONVERSION_FILE"
     done
 }
+
+## add_node_name
+# attempt to add a new node to the lookup tables
 function add_node_name {
     local NAME="$1"
     local XNAME NID FULLNID NMN
@@ -223,6 +249,8 @@ function add_node_name {
     CONVERT2NMN[$NAME]="$NMN"
 }
 
+## convert2xname
+# attempt to convert the given name into it's xname
 function convert2xname {
     local NODES=( $(nodeset -e "$@") )
     local NODE
@@ -238,6 +266,8 @@ function convert2xname {
     RETURN="${NODE_LIST[*]}"
 }
 
+## convert2nid
+# attempt to convert the given name into it's nid
 function convert2nid {
     local NODES=( $(nodeset -e "$@") )
     local NODE
@@ -253,6 +283,8 @@ function convert2nid {
     RETURN="${NODE_LIST[*]}"
 }
 
+## convert2fullnid
+# attempt to convert the given name into it's fullnid
 function convert2fullnid {
     local NODES=( $(nodeset -e "$@") )
     local NODE
@@ -269,6 +301,8 @@ function convert2fullnid {
     RETURN="${NODE_LIST[*]}"
 }
 
+## convert2nmn
+# attempt to convert the given name into it's nmn hostname
 function convert2nmn {
     local NODES=( $(nodeset -e "$@") )
     local NODE
@@ -285,6 +319,8 @@ function convert2nmn {
     RETURN="${NODE_LIST[*]}"
 }
 
+## json_set_field
+# Set the given field in a json file
 function json_set_field {
     local FILE="$1"
     local FIELD="$2"

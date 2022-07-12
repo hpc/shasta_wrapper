@@ -45,6 +45,8 @@ function image_job_help {
     exit 1
 }
 
+## refresh_image_jobs_raw
+# Get information on all ims jobs
 function refresh_image_jobs_raw {
     if [[ -n "$IMS_JOBS_RAW" && "$1" != "--force" ]]; then
         return
@@ -60,6 +62,8 @@ function refresh_image_jobs_raw {
     fi
 }
 
+## image_job_list
+# list all ims jobs
 function image_job_list {
     refresh_image_jobs_raw
     printf "${COLOR_BOLD}%33s   %44s   %8s$COLOR_RESET\n" DATE ID STATE
@@ -69,6 +73,8 @@ function image_job_list {
         sort)
 }
 
+## image_job_describe
+# Show information on the given ims job
 function image_job_describe {
     local ID="$1"
 
@@ -80,11 +86,30 @@ function image_job_describe {
     refresh_image_jobs_raw
 
     echo "$IMS_JOBS_RAW" | jq ".[] | select(.id == \"$ID\")"
+    return $?
 }
 
+## image_job_delete
+# Delete the given ims job
 function image_job_delete {
     local JOBS=( "$@" )
     local job
+
+    if [[ "$1" == '--'* ]]; then
+        if [[ "${JOBS[0]}" == "--all" ]]; then
+            refresh_image_jobs_raw
+            JOBS=( $(echo "$IMS_JOBS_RAW" | jq '.[].id' | sed 's/"//g') )
+            prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
+
+        elif [[ "${JOBS[0]}" == "--complete" ]]; then
+            refresh_image_jobs_raw
+            JOBS=( $(echo "$IMS_JOBS_RAW" | jq '.[] | select(.status == "success")' | jq '.id' | sed 's/"//g') )
+            prompt_yn "Would you really like to delete the ${#JOBS[@]} complete jobs?" || exit 0
+	else
+            echo "Invalid argument: '${JOBS[0]}'"
+	    JOBS=( )
+        fi
+    fi
 
     if [[ -z "$JOBS" ]]; then
         echo    "USAGE: $0 image job delete <options> [jobids]"
@@ -94,31 +119,39 @@ function image_job_delete {
         exit 1
     fi
 
-    if [[ "${JOBS[0]}" == "--all" ]]; then
-        refresh_image_jobs_raw
-        JOBS=( $(echo "$IMS_JOBS_RAW" | jq '.[].id' | sed 's/"//g') )
-        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
-
-    elif [[ "${JOBS[0]}" == "--complete" ]]; then
-        refresh_image_jobs_raw
-        JOBS=( $(echo "$IMS_JOBS_RAW" | jq '.[] | select(.status == "success")' | jq '.id' | sed 's/"//g') )
-        prompt_yn "Would you really like to delete the ${#JOBS[@]} complete jobs?" || exit 0
-    fi
-
     for job in "${JOBS[@]}"; do
         verbose_cmd cray ims jobs delete $job
         sleep 2
     done
 }
 
+## image_job_exit_if_not_valid
+# Exit if the given image job isn't valid (most likely it doesn't exist)
+function image_job_exit_if_not_valid {
+    image_job_describe "$1" > /dev/null 2>&1
+    if [[ $? -ne 0 ]]; then
+        die "Error! $1 is not a valid image job."
+    fi
+}
+
+## image_job_log
+# Get logs in the given ims job
 function image_job_log {
     ID="$1"
+
+    if [[ -z "$ID" ]]; then
+        echo "USAGE: $0 image job log [image job id]"
+	exit 1
+    fi
+    image_job_exit_if_not_valid "$ID"
 
     cmd_wait_output "job" cray ims jobs describe "$ID"
     refresh_image_jobs_raw
 
     JOB_ID=$(echo "$IMS_JOBS_RAW" | jq ".[] | select(.id == \"$ID\")" | jq '.kubernetes_job' | sed 's/"//g')
-    echo "JOB_ID: $JOB_ID"
+    if [[ -z "$JOB_ID" ]]; then
+        die "ERROR! Failed to get job id for image job '$ID'"
+    fi
 
     image_logwatch "$JOB_ID"
 }

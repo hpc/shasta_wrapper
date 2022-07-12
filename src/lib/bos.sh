@@ -77,6 +77,8 @@ function bos_help {
     exit 1
 }
 
+# refresh_bos_raw
+# Pull down the raw json from bos and save it
 function refresh_bos_raw {
     if [[ -n "$BOS_RAW" && "$1" != '--force' ]]; then
         return 0
@@ -89,6 +91,8 @@ function refresh_bos_raw {
     return 0
 }
 
+## bos_get_default_node_group
+# Get the group to use for the given node. This is done due to some ansible groups not having any defaults for booting, thus for this we are looking for what group to consider the node from the list of groups that have assigned default bos templates. 
 function bos_get_default_node_group {
     local NODE="$1"
     cluster_defaults_config
@@ -113,15 +117,22 @@ function bos_get_default_node_group {
     die "Error. Node '$NODE' is not a member of any group defined for 'BOS_DEFAULT' in /etc/cluster_defaults.conf"
 }
 
+## bos_list
+# List the given bos configurations
 function bos_list {
     local BOS_LINES line group
     cluster_defaults_config
     refresh_bos_raw
     echo "NAME(Nodes applied to at boot)"
+
+    # Grab the bos config names
     BOS_LINES=( $(echo "$BOS_RAW" | jq '.[].name' | sed 's/"//g') )
     if [[ -z "$BOS_LINES" ]]; then
         die "Error unable to get bos information"
     fi
+
+    # When a bos template is set as default for an ansible group, display that 
+    # ansible group in bold in paratheses next to it
     BOS_TEMPLATES=( )
     for line in "${BOS_LINES[@]}"; do
         echo -n "$line"
@@ -135,16 +146,30 @@ function bos_list {
     done
 }
 
+## bos_describe
+# Show the bos configuration for the given bos config
 function bos_describe {
+    if [[ -z "$1" ]]; then
+        echo "USAGE: $0 bos describe [bos config]"
+	return 1
+    fi
     cray bos sessiontemplate describe "$@"
     return $?
 }
 
+## bos_delete
+# Delete the given bos config
 function bos_delete {
+    if [[ -z "$1" ]]; then
+        echo "USAGE: $0 bos delete [bos config]"
+	return 1
+    fi
     cray bos sessiontemplate delete "$@"
     return $?
 }
 
+## bos_exit_if_not_valid
+# Exit if the given bos template isn't valid (most likely it doesn't exist)
 function bos_exit_if_not_valid {
     bos_describe "$1" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
@@ -152,6 +177,8 @@ function bos_exit_if_not_valid {
     fi
 }
 
+## bos_exit_if_exists
+# Exit if the given bos config exists
 function bos_exit_if_exists {
     bos_describe "$1" > /dev/null 2>&1
     if [[ $? -eq 0 ]]; then
@@ -160,6 +187,8 @@ function bos_exit_if_exists {
     fi
 }
 
+## bos_clone
+# Clone the given bos template to annother name (won't replace existing ones)
 function bos_clone {
     local SRC="$1"
     local DEST="$2"
@@ -182,6 +211,8 @@ function bos_clone {
     set +e
 }
 
+## bos_update_template
+# updatei a key/value pair in the given bos config
 function bos_update_template {
     local TEMPLATE="$1"
     local KEY="$2"
@@ -197,6 +228,8 @@ function bos_update_template {
     return $?
 }
 
+## bos_edit
+# Edit the given bos template file with an editor
 function bos_edit {
     local CONFIG="$1"
 
@@ -211,7 +244,7 @@ function bos_edit {
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         rm -f "$BOS_CONFIG_DIR/$CONFIG.json"
-        die "Error! Config '$CONFIG' does not exist!"
+        die "Error! Failed to get bos config '$CONFIG'!"
     fi
 
     set +e
@@ -225,6 +258,9 @@ function bos_edit {
     fi
 }
 
+## bos_action
+# Perform a given action with the given bos template against the given nodes. 
+# For example, reboot some nodes with the cos-sessiontemplate.
 function bos_action {
     local ACTION="$1"
     shift
@@ -253,11 +289,11 @@ function bos_action {
     BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
 
 
-    # if booting more than one node,
-    if [[ "${#TARGET}" -ge 20 ]]; then
+    # if booting more than one node, just call it by the template name
+    if [[ "${#TARGET}" -ge 2 ]]; then
         LOGFILE="$BOOT_LOGS/$ACTION-$TEMPLATE.log"
     else
-        LOGFILE="$BOOT_LOGS/$ACTION-$TARGET.log"
+        LOGFILE="$BOOT_LOGS/$ACTION-${TARGET[0]}.log"
     fi
 
     mkdir -p "$BOOT_LOGS"

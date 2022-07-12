@@ -74,12 +74,18 @@ function cfs_help {
     exit 1
 }
 
-
+## cfs_list
+# List out the given cfs job configurations
 function cfs_list {
     local CONFIG CONFIGS group
     cluster_defaults_config
-    echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
+
+    # Get all config data
     CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
+    echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
+
+    # Any cfs configs that are set as a default for an ansible group should 
+    # have the ansible group name in paretheses and bolded.
     for CONFIG in "${CONFIGS[@]}"; do
         echo -n "$CONFIG"
         for group in "${!CUR_IMAGE_CONFIG[@]}"; do
@@ -91,16 +97,30 @@ function cfs_list {
     done | sort
 }
 
+## cfs_describe
+# Show the given cfs configuration
 function cfs_describe {
+    if [[ -z "$1" ]]; then
+        echo "USAGE: $0 cfs describe [cfs config]"
+	return 1
+    fi
     cray cfs configurations describe "$@"
     return $?
 }
 
+## cfs_delete
+# Delete the given cfs configuration
 function cfs_delete {
+    if [[ -z "$1" ]]; then
+        echo "USAGE: $0 cfs delete [cfs config]"
+	return 1
+    fi
     cray cfs configurations delete "$@"
     return $?
 }
 
+## cfs_exit_if_not_valid
+# exit if the given cfs config is not valid (doesn't exist)
 function cfs_exit_if_not_valid {
     cfs_describe "$1" > /dev/null 2> /dev/null
     if [[ $? -ne 0 ]]; then
@@ -108,6 +128,8 @@ function cfs_exit_if_not_valid {
     fi
 }
 
+## cfs_exit_if_exists
+# exit if the given cfs config exists
 function cfs_exit_if_exists {
     cfs_describe "$1" > /dev/null 2>&1
     if [[ $? -eq 0 ]]; then
@@ -116,6 +138,8 @@ function cfs_exit_if_exists {
     fi
 }
 
+## cfs_clone
+# Clones the given ffs config to the new name. Doesn't replace any existing config
 function cfs_clone {
     local SRC="$1"
     local DEST="$2"
@@ -138,6 +162,8 @@ function cfs_clone {
     set +e
 }
 
+## cfs_edit
+# Edit the given cfs config with an editor
 function cfs_edit {
     local CONFIG="$1"
     if [[ -z "$CONFIG" ]]; then
@@ -171,6 +197,8 @@ function cfs_edit {
     ) 42>/tmp/lock
 }
 
+## cfs_apply
+# Run the given cfs config against the given host
 function cfs_apply {
     local NAME JOB POD TRIED MAX_TRIES RET NODE_STRING ARGS OPTIND
     OPTIND=1
@@ -214,6 +242,8 @@ function cfs_apply {
     cray cfs sessions delete "$NAME"
 }
 
+## cfs_clear_node_counters
+# Clear the error counters on the given node and ensure it's enabled
 function cfs_clear_node_counters {
     local NODES=( "$@" )
     local NODE i COUNT JOBS
@@ -235,6 +265,8 @@ function cfs_clear_node_counters {
     echo
 }
 
+## cfs_unconfigured
+# Get a list of the nodes that cfs has not configured, and the group that node is a member of
 function cfs_unconfigured {
     refresh_ansible_groups
     NODES=( $(cray cfs components list --format json | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
@@ -245,6 +277,8 @@ function cfs_unconfigured {
     done
 }
 
+## cfs_log_job
+# Get the logs from the given cfs job id
 function cfs_log_job {
     local CFS="$1"
     local POD
@@ -274,6 +308,8 @@ function cfs_log_job {
     cfs_logwatch "$POD"
 }
 
+## cfs_logwatch
+# Get the logs of a given cfs kube pod
 function cfs_logwatch {
     POD_ID=$1
     INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json |\
@@ -297,6 +333,8 @@ function cfs_logwatch {
         sed 's/,//g') )
 
     # init container logs
+    # TODO: This method has an issue where logs will only be shown if the init 
+    # containers are successfull. Need to look at this.
     for cont in "${INIT_CONTAIN[@]}"; do
         echo
         echo
@@ -308,6 +346,8 @@ function cfs_logwatch {
     done
 
     # container logs
+    # We look and inventory first as it's run before and ansible ones, and is 
+    # alphabetically after in the list
     echo
     echo
     echo "#################################################"
@@ -328,6 +368,8 @@ function cfs_logwatch {
     done
 }
 
+## read_git_config
+# Reads /etc/cfs_defaults.conf to get what git repos we can update with new conig ids
 function read_git_config {
     local REPO
 
@@ -346,6 +388,8 @@ function read_git_config {
     done
 }
 
+## cfs_update
+# Update the commit ids for the given cfs configurations based on what urls and branches are defined in /etc/cfs_defaults.conf. Asks user before making any changes.
 function cfs_update {
     local CONFIGS=( "$@" )
     local LAYER LAYER_URL FLOCK CONFIG
@@ -396,6 +440,8 @@ function cfs_update {
     done
 }
 
+## get_git_password
+# Pull the git password out of kubernetes
 function get_git_password {
     if [[ -n "$GIT_PASSWD" ]]; then
         return
@@ -407,6 +453,8 @@ function get_git_password {
     fi
 }
 
+## cfs_update_git
+# Given the cfs configuration, update it's commit ids with the commit ids of the beanch specified in /etc/cfs_defaults.conf.
 function cfs_update_git {
     local FILE="$1"
     local LAYER="$2"

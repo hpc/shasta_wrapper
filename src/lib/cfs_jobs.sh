@@ -45,6 +45,8 @@ function cfs_job_help {
     exit 1
 }
 
+## refresh_cfs_jobs_raw
+# Update our copy of the cfs job data
 function refresh_cfs_jobs_raw {
     if [[ -n "$CFS_JOBS_RAW" && "$1" != "--force" ]]; then
         return
@@ -56,6 +58,8 @@ function refresh_cfs_jobs_raw {
     fi
 }
 
+## cfs_job_list
+# List out the cfs jobs
 function cfs_job_list {
     refresh_cfs_jobs_raw
 
@@ -78,6 +82,8 @@ function cfs_job_list {
     fi
 }
 
+## cfs_job_describe
+# Show the information on the given job
 function cfs_job_describe {
     local ID="$1"
 
@@ -91,6 +97,8 @@ function cfs_job_describe {
     echo "$CFS_JOBS_RAW" | jq ".[] | select(.name == \"$ID\")"
 }
 
+## cfs_job_delete
+# Delete the given cfs jobs
 function cfs_job_delete {
     local JOBS=( "$@" )
     local job

@@ -1,28 +1,23 @@
 #!/bin/bash
-
-case "$1" in
-nid*)
-  xname=$(nid2xname $1)
-  ;;
-x*)
-  xname=$1
-  ;;
-*)
+  
+xname=$(nid2xname $1)
+if [[ -z "$xname" ]]; then
   echo "Do not understand $1" 1>&2
   exit 1
-  ;;
-esac
+fi
 
-conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-console-node -o jsonpath='{.items[].metadata.name}' 2> /dev/null)
+conpods=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-console-node 2> /dev/null | awk '{print $1}')
 CONTAINER=cray-console-node
-if [[ -z "$conpod" ]]; then
-    conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-conman -o jsonpath='{.items[].metadata.name}')
+if [[ -z "$conpods" ]]; then
+    conpods=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-conman -o jsonpath='{.items[].metadata.name}')
     CONTAINER=cray-conman
 fi
-if [[ -z "$conpod" ]]; then
+if [[ -z "$conpods" ]]; then
     echo "ERROR! conman pod can't be located!"
     exit 1
 fi
 
+for pod in $conpods; do
+    kubectl -n services exec -it $pod -c $CONTAINER -- conman -j ${xname}
+done
 
-exec kubectl -n services exec -it $conpod -c $CONTAINER -- conman -j ${xname}

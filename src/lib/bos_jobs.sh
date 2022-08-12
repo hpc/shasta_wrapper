@@ -71,21 +71,21 @@ function bos_job_list {
             echo "$JOB"
         done
     elif [[ -z "$1" ]]; then
-        printf "${COLOR_BOLD}%26s   %40s   %30s    %10s$COLOR_RESET\n" Started ID Template Complete
+        printf "${COLOR_BOLD}%28s   %37s   %30s   %10s$COLOR_RESET\n" Started ID Template Complete
         for JOB in "${BOS_JOBS[@]}"; do
             local RET=1
             while [[ "$RET" -ne 0 ]]; do
-                printf "%10s %15s   %40s   %30s    %10s\n" \
+                printf "%28s   %37s   %30s   %10s\n" \
                   `cray bos session describe "$JOB" --format json 2> /dev/null \
-                  | jq ". | \"\\(.start_time)   $JOB   \\(.templateUuid)   \\(.complete)\"" \
+                  | jq ". | \"\\(.start_time)   $JOB   \\(.templateName)   \\(.complete)\"" \
                   | sed 's/"//g'`
                 RET=$?
             done
         done | sort
     else
-	echo "Usage: $0 bos job list <options>"
-	echo "Options:"
-	echo -e "\t-s: short listing (just list ids). This is much faster but less informative"
+        echo "Usage: $0 bos job list <options>"
+        echo "Options:"
+        echo -e "\t-s: short listing (just list ids). This is much faster but less informative"
     fi
 }
 

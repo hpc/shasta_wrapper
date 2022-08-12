@@ -167,7 +167,7 @@ function refresh_sat_data {
     sat status 2> /dev/null | grep Node | sed 's/[^a-zA-Z0-9 ]//g' > "$SAT_FILE"
 
     IFS=$'\n'
-    NODES=( $(cat "$SAT_FILE" | awk '{print $1 " " $3}') )
+    NODES=( $(cat "$SAT_FILE" | awk '{print $1 " " $2}' | sed 's/nid//g') )
     IFS=$' \t\n'
 
     echo "#!/bin/bash" > "$NODE_CONVERSION_FILE"
@@ -331,3 +331,4 @@ function json_set_field {
     cat $FILE | jq "$FIELD" > /dev/null || return 1
     return 0
 }
+

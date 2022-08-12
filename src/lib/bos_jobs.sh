@@ -96,7 +96,7 @@ function bos_job_describe {
         echo "USAGE: $0 bos job delete [jobid]"
 	return 1
     fi
-    cray bos session describe "$1"
+    cray bos session describe --format json "$1"
     return $?
 }
 
@@ -140,7 +140,7 @@ function bos_job_delete {
 
     # Delete the jobs
     for job in "${JOBS[@]}"; do
-        verbose_cmd cray bos session delete $job
+        verbose_cmd cray bos session delete $job --format json
         sleep 2
     done
 }

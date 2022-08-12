@@ -109,7 +109,7 @@ function image_list {
 ## image_describe
 # show inormation on the given image
 function image_describe {
-    verbose_cmd cray ims images describe "$1"
+    verbose_cmd cray ims images describe --format json "$1"
 }
 
 ## image_delete
@@ -120,7 +120,7 @@ function image_delete {
         exit 1
     fi
     for image in "$@"; do
-        verbose_cmd cray ims images delete "$image" | grep -P '\S'
+        verbose_cmd cray ims images delete --format json "$image" | grep -P '\S'
     done
     echo "Cleaning up image artifacts..."
     image_clean_deleted_artifacts
@@ -183,7 +183,7 @@ function image_build {
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
 
-    cray cfs configurations describe "$CONFIG_NAME" > /dev/null 2>&1
+    cray cfs configurations describe --format json "$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         die "'$CONFIG_NAME' is not a valid configuration."
     fi
@@ -314,9 +314,9 @@ function image_build_bare {
     image_logwatch "$JOB_ID"
 
     set +e
-    cmd_wait_output "success|error" cray ims jobs describe $IMS_JOB_ID
+    cmd_wait_output "success|error" cray ims jobs describe --format json $IMS_JOB_ID
 
-    cray ims jobs describe $IMS_JOB_ID | grep "status" | grep -q 'success'
+    cray ims jobs describe --format json $IMS_JOB_ID | grep "status" | grep -q 'success'
     if [[ "$?" -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
@@ -325,14 +325,14 @@ function image_build_bare {
     IMAGE_ID=$(cray ims jobs describe $IMS_JOB_ID  --format json | jq .resultant_image_id | sed 's/"//g' )
     echo "  Grabbing image_id = '$IMAGE_ID' from output..."
 
-    verbose_cmd cray ims images describe "$IMAGE_ID" > /dev/null 2>&1
+    verbose_cmd cray ims images describe --format json "$IMAGE_ID" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
     fi
     echo "  Ok, image does appear to exist. Cleaning up the job..."
 
-    verbose_cmd cray ims jobs delete $IMS_JOB_ID
+    verbose_cmd cray ims jobs delete --format json $IMS_JOB_ID
 
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID" 1>&2
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID"
@@ -467,7 +467,7 @@ function image_configure {
 
     # Delete any existing cfs session that has the same 
     # name to ensure we don't screw things up
-    cray cfs sessions delete "$SESSION_NAME" > /dev/null 2>&1
+    cray cfs sessions delete --format json "$SESSION_NAME" > /dev/null 2>&1
 
     ## Launch the cfs configuration job. 
     # We try multiple times as sometimes cfs is in a bad state and won't 
@@ -481,6 +481,7 @@ function image_configure {
             echo "failed... trying again($TRIES/$RETRIES)"
         fi
     	verbose_cmd cray cfs sessions create \
+	    --format json \
     	    --name "$SESSION_NAME" \
     	    --configuration-name "$CONFIG_NAME" \
     	    --target-definition image \
@@ -497,12 +498,12 @@ function image_configure {
 
     ## Show the logs for the cfs configure job
     #
-    cmd_wait_output "job" cray cfs sessions describe "$SESSION_NAME"
+    cmd_wait_output "job" cray cfs sessions describe --format json "$SESSION_NAME"
 
     JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
     cfs_log_job "$SESSION_NAME"
 
-    cmd_wait_output 'complete' cray cfs sessions describe "$SESSION_NAME"
+    cmd_wait_output 'complete' cray cfs sessions describe --format json "$SESSION_NAME"
 
     cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.session.succeeded' | grep -q 'true'
     if [[ $? -ne 0 ]]; then
@@ -519,7 +520,7 @@ function image_configure {
         echo "[$GROUP_NAME] Could not determine image id for configured image."
         die "[$GROUP_NAME] Could not determine image id for configured image."
     fi
-    verbose_cmd cray ims images describe "$NEW_IMAGE_ID"
+    verbose_cmd cray ims images describe --format json "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
         die "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
@@ -539,6 +540,6 @@ function image_clean_deleted_artifacts {
     local artifact
     ARTIFACTS=( $(cray artifacts list boot-images --format json | jq '.artifacts' | jq '.[].Key' | sed 's/"//g' | grep ^deleted/) )
     for artifact in "${ARTIFACTS[@]}"; do
-        cray artifacts delete boot-images "$artifact" | grep -P '\S'
+        cray artifacts delete boot-images --format json "$artifact" | grep -P '\S'
     done
 }

@@ -104,7 +104,7 @@ function cfs_describe {
         echo "USAGE: $0 cfs describe [cfs config]"
 	return 1
     fi
-    cray cfs configurations describe "$@"
+    cray cfs configurations describe --format json "$@"
     return $?
 }
 
@@ -115,7 +115,7 @@ function cfs_delete {
         echo "USAGE: $0 cfs delete [cfs config]"
 	return 1
     fi
-    cray cfs configurations delete "$@"
+    cray cfs configurations delete --format json "$@"
     return $?
 }
 
@@ -231,9 +231,9 @@ function cfs_apply {
     cfs_clear_node_counters "${NODES[@]}"
 
     if [[ -n "${NODES[*]}" ]]; then
-        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODE_STRING"
+        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --ansible-limit "$NODE_STRING" --format json
     else
-        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG
+        cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --format json
     fi
     sleep 1
     cfs_log_job "$NAME"

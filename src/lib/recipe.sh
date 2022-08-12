@@ -97,7 +97,7 @@ function recipe_delete {
         echo "usage: $0 recipe delete <recipe id>"
         exit 1
     fi
-    verbose_cmd cray ims recipes delete "$RECIPE"
+    verbose_cmd cray ims recipes delete --format json "$RECIPE"
 }
 
 ## recipe_get

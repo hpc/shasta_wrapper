@@ -120,7 +120,7 @@ function image_job_delete {
     fi
 
     for job in "${JOBS[@]}"; do
-        verbose_cmd cray ims jobs delete $job
+        verbose_cmd cray ims jobs delete --format json $job
         sleep 2
     done
 }
@@ -145,7 +145,7 @@ function image_job_log {
     fi
     image_job_exit_if_not_valid "$ID"
 
-    cmd_wait_output "job" cray ims jobs describe "$ID"
+    cmd_wait_output "job" cray ims jobs describe --format json "$ID"
     refresh_image_jobs_raw
 
     JOB_ID=$(echo "$IMS_JOBS_RAW" | jq ".[] | select(.id == \"$ID\")" | jq '.kubernetes_job' | sed 's/"//g')

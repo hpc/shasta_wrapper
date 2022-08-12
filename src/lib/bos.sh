@@ -153,7 +153,7 @@ function bos_describe {
         echo "USAGE: $0 bos describe [bos config]"
 	return 1
     fi
-    cray bos sessiontemplate describe "$@"
+    cray bos sessiontemplate describe --format json "$@"
     return $?
 }
 
@@ -164,7 +164,7 @@ function bos_delete {
         echo "USAGE: $0 bos delete [bos config]"
 	return 1
     fi
-    cray bos sessiontemplate delete "$@"
+    cray bos sessiontemplate delete --format json "$@"
     return $?
 }
 

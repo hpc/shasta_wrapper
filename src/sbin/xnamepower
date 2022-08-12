@@ -47,15 +47,11 @@ while [ -n "$1" ]; do
   x*)
     xlist="$1"
     ;;
-  nid*)
-    xlist=`nid2xname $1`
-    ;;
   on|off|reset|status)
     op="$1"
     ;;
   *)
-    usage
-    exit 1
+    xlist=`nid2xname $1 | xargs | sed 's/ /,/g'`
     ;;
   esac
   shift
@@ -98,3 +94,4 @@ status|"")
 esac
 
 exit $((ret1|ret2))
+

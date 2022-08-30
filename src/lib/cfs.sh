@@ -292,8 +292,8 @@ function cfs_log_job {
     cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
     JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
 
-    cmd_wait_output "Created pod:" kubectl describe job -n services "$JOB"
-    POD=$(kubectl describe job -n services $JOB | grep 'Created pod:' | awk '{print $7}')
+    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
+    POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
     set +e
 
     echo "################################################"
@@ -491,3 +491,4 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
+

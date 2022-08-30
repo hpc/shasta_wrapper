@@ -346,8 +346,8 @@ function image_logwatch {
     KUBE_JOB="$1"
 
     sleep 3
-    cmd_wait_output "SuccessfulCreate" kubectl describe job -n ims $KUBE_JOB
-    POD_ID=$(kubectl describe job -n ims $JOB_ID | grep SuccessfulCreate | awk '{print $7}')
+    cmd_wait_output "READY" kubectl get pods -l job-name=$KUBE_JOB -n ims
+    POD_ID=$(kubectl get pods -l job-name=$KUBE_JOB -n ims| tail -n 1 | awk '{print $1}')
 
     verbose_cmd kubectl describe job -n ims $JOB_ID | grep -q 'Pods Statuses:  0 Running / 1 Succeeded'
     RET=$?
@@ -543,3 +543,4 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images --format json "$artifact" | grep -P '\S'
     done
 }
+

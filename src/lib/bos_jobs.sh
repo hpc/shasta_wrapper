@@ -171,8 +171,9 @@ function bos_job_log {
     fi
 
     cd /tmp
-    cmd_wait_output "Created pod:" kubectl describe job -n services "$KUBE_JOB_ID"
-    POD=$(kubectl describe job -n services "$KUBE_JOB_ID" | grep 'Created pod:' | awk '{print $7}' )
+
+    cmd_wait_output "READY" kubectl get pods -l job-name=$KUBE_JOB_ID -n services
+    POD=$(kubectl get pods -l job-name=$KUBE_JOB_ID -n services| tail -n 1 | awk '{print $1}')
     cmd_wait kubectl logs -n services "$POD" -c boa
 
     echo
@@ -188,3 +189,4 @@ function bos_job_log {
 
     kubectl logs -n services "$POD" -c boa -f
 }
+

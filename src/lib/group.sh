@@ -99,7 +99,11 @@ function group_action {
     done
     for GROUP in "${GROUP_LIST[@]}"; do
         NODES="${GROUP2NODES[$GROUP]}"
-        node_action "$ACTION" $NODES
+        if [[ "$ACTION" == "configure" ]]; then
+            node_config $NODES
+        else
+            node_action "$ACTION" $NODES
+        fi
     done
 }
 
@@ -253,3 +257,4 @@ function group_summary {
         echo ""
     done
 }
+

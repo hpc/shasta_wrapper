@@ -250,7 +250,30 @@ function cfs_clear_node_counters {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        cray cfs components update --error-count 0 "$node" --enabled true > /dev/null 2>&1 &
+        cray cfs components update --error-count 0 "$NODE" --enabled true > /dev/null 2>&1 &
+    done
+
+    i=0
+    JOBS=99
+    while [[ "$JOBS" -gt "0" ]]; do
+        JOBS=$(jobs -r | wc -l)
+        COUNT="${#NODES[@]}"
+        ((i=$COUNT - $JOBS))
+        echo -en "\rUpdating node state: $i/${#NODES[@]}"
+        sleep 2
+    done
+    echo
+}
+
+## cfs_clear_node_state
+# Clear the node state forcing it to rerun cfs
+function cfs_clear_node_state {
+    local NODES=( "$@" )
+    local NODE i COUNT JOBS
+
+    disown -a
+    for NODE in "${NODES[@]}"; do
+        cray cfs components update --error-count 0 "$NODE" --state '[]' --enabled true > /dev/null 2>&1 &
     done
 
     i=0

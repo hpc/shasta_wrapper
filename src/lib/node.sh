@@ -22,7 +22,7 @@ function node {
             ;;
         con*)
             shift
-            node_action configure "$@"
+            node_config "$@"
             ;;
         li*)
             shift
@@ -176,6 +176,26 @@ function node_describe {
     echo "$RAW_CFS" | jq '.retryPolicy' | sed 's/"//g'
 
 }
+## node_config
+# Rerun cfs configurations on given nodes
+function node_config {
+    OPTIND=1
+    while getopts "y" OPTION ; do
+        case "$OPTION" in
+            y) ASSUME_YES=1;;
+            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    if [[ -z "$@" ]]; then
+        echo "USAGE: $0 node config [nodes]" 1>&2
+        exit 1
+    fi
+    convert2xname "$@"
+    local NODES=( $RETURN )
+    cfs_clear_node_state "${NODES[@]}"
+}
 
 ## node_action
 # Perform an action against a list of nodes. THis figures out the correct bos template for the node and send that to bos_action with the node list.
@@ -227,3 +247,4 @@ function node_action {
         bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "${NODES[@]}"
     done
 }
+

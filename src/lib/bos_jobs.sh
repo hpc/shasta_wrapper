@@ -141,7 +141,6 @@ function bos_job_delete {
     # Delete the jobs
     for job in "${JOBS[@]}"; do
         verbose_cmd cray bos session delete $job --format json
-        sleep 2
     done
 }
 ## bos_job_exit_if_not_valid

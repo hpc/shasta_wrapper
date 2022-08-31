@@ -121,7 +121,6 @@ function image_job_delete {
 
     for job in "${JOBS[@]}"; do
         verbose_cmd cray ims jobs delete --format json $job
-        sleep 2
     done
 }
 

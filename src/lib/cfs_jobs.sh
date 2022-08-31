@@ -125,6 +125,5 @@ function cfs_job_delete {
 
     for job in "${JOBS[@]}"; do
         verbose_cmd cray cfs sessions delete --format json $job
-        sleep 2
     done
 }

@@ -4,4 +4,4 @@ if [[ -z "$@" ]]; then
     exit 1
 fi
 set -e
-shasta node 2xname "$@" | sed 's/ /\n/'
+shasta node 2xname "$@" | sed 's/ /\n/g'

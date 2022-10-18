@@ -164,10 +164,10 @@ function get_node_conversions {
 function refresh_sat_data {
     local SAT_FILE=/usr/share/shasta_wrapper/sat.out
 
-    sat status 2> /dev/null | grep Node | sed 's/[^a-zA-Z0-9 ]//g' > "$SAT_FILE"
+    sat status --no-headings --no-borders --fields xname,nid | awk '{print $1 " " $2}' > "$SAT_FILE"
 
     IFS=$'\n'
-    NODES=( $(cat "$SAT_FILE" | awk '{print $1 " " $2}' | sed 's/nid//g') )
+    NODES=( $(cat "$SAT_FILE") )
     IFS=$' \t\n'
 
     echo "#!/bin/bash" > "$NODE_CONVERSION_FILE"

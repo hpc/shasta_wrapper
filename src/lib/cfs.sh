@@ -285,6 +285,7 @@ function cfs_clear_node_state {
         echo -en "\rResetting node cfs state: $i/${#NODES[@]}"
         sleep 2
     done
+    echo
     echo "All nodes have had their cfs state reset. This should cause new cfs jobs to spawn shortly." 
     echo "If you have had a lot of failed cfs runs you may need to restart the cfs batcher, as it backs off of launching when a lot have failed"
     echo

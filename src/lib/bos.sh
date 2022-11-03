@@ -279,7 +279,7 @@ function bos_action {
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
     cluster_defaults_config
-    cfs_clear_node_counters "${TARGET[@]}"
+    #cfs_clear_node_counters "${TARGET[@]}"
 
     bos_exit_if_not_valid "$TEMPLATE"
     KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')

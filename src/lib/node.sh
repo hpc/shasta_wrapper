@@ -24,6 +24,10 @@ function node {
             shift
             node_config "$@"
             ;;
+        clear_errors)
+            shift
+            node_clear_errors "$@"
+            ;;
         li*)
             shift
             node_list "$@"
@@ -63,6 +67,7 @@ function node_help {
     echo -e "\t2xname [nodes] : Convert given nodes to xname format."
     echo -e "\tboot [nodes space seperated] : Boots the given nodes into the given group's default bos template."
     echo -e "\tconfig [nodes space seperated] : Configures the given nodes with the given group's default cfs config."
+    echo -e "\tclear_errors [nodes space seperated] : Resets the error countes for cfs and enables the nodes."
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
@@ -197,6 +202,11 @@ function node_config {
     cfs_clear_node_state "${NODES[@]}"
 }
 
+## node_clear_errors
+function node_clear_errors {
+    cfs_clear_node_counters "$@"
+}
+
 ## node_action
 # Perform an action against a list of nodes. THis figures out the correct bos template for the node and send that to bos_action with the node list.
 function node_action {
@@ -247,4 +257,3 @@ function node_action {
         bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "${NODES[@]}"
     done
 }
-

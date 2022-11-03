@@ -19,6 +19,10 @@ function group {
             shift
             group_action configure "$@"
             ;;
+        clear_errors)
+            shift
+            group_action clear_errors "$@"
+            ;;
         li*)
             shift
             group_list "$@"
@@ -55,6 +59,7 @@ function group_help {
     echo    "ACTIONS:"
     echo -e "\tboot [group list] : Boots the nodes in the given group with the group's default bos template."
     echo -e "\tconfig [group list] : Configures the nodes in the given group with the group's default cfs config."
+    echo -e "\tclear_errors [group list] : Resets the error countes for cfs and enables the nodes in the given groups."
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
@@ -101,6 +106,8 @@ function group_action {
         NODES="${GROUP2NODES[$GROUP]}"
         if [[ "$ACTION" == "configure" ]]; then
             node_config $NODES
+        elif [[ "$ACTION" == "clear_errors" ]]; then
+            node_clear_errors $NODES
         else
             node_action "$ACTION" $NODES
         fi
@@ -257,4 +264,3 @@ function group_summary {
         echo ""
     done
 }
-

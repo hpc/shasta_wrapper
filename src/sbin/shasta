@@ -50,6 +50,10 @@ function main {
             shift
             node "$@"
             ;;
+        power)
+            shift
+            power "$@"
+            ;;
         rec*)
             shift
             recipe "$@"
@@ -80,6 +84,7 @@ function help_shasta {
   echo "  image : image controls"
   echo "  node : node info and actions"
   echo "  recipe : recipes for building images"
+  echo "  power : controls power for components on the system"
   echo "  regression : run internal regression tests"
   echo "  version : print software version"
 }

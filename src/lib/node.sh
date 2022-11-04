@@ -28,6 +28,26 @@ function node {
             shift
             node_clear_errors "$@"
             ;;
+        power_up)
+            shift
+            power_action up "$@"
+            exit $?
+            ;;
+        power_off)
+            shift
+            power_action off "$@"
+            exit $?
+            ;;
+        power_reset)
+            shift
+            power_reset "$@"
+            exit $?
+            ;;
+        power_status)
+            shift
+            power_status "$@"
+            exit $?
+            ;;
         li*)
             shift
             node_list "$@"
@@ -65,14 +85,17 @@ function node_help {
     echo -e "\t2nid [nodes] : Convert given nodes to nid numbers."
     echo -e "\t2fullnid [nodes] : Convert given nodes to nidXXXXXX format."
     echo -e "\t2xname [nodes] : Convert given nodes to xname format."
-    echo -e "\tboot [nodes space seperated] : Boots the given nodes into the given group's default bos template."
-    echo -e "\tconfig [nodes space seperated] : Configures the given nodes with the given group's default cfs config."
-    echo -e "\tclear_errors [nodes space seperated] : Resets the error countes for cfs and enables the nodes."
+    echo -e "\tboot [nodes] : Boots the given nodes into the given group's default bos template."
+    echo -e "\tconfig [nodes] : Configures the given nodes with the given group's default cfs config."
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
+    echo -e "\tpower_on <options> [nodes]: Power on given nodes"
+    echo -e "\tpower_off <options> [nodes]: Power off given nodes"
+    echo -e "\tpower_reset [nodes]: reset node power"
+    echo -e "\tpower_status [nodes]: Get node power status"
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
     echo -e "\tshow [node] : show details on a specific node group"
-    echo -e "\tshutdown [nodes space seperated] : shutdown all nodes in the group"
+    echo -e "\tshutdown [nodes] : shutdown all nodes in the group"
     echo -e "\tunconf : List all unconfigured nodes"
 
     exit 1

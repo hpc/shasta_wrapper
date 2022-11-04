@@ -31,6 +31,22 @@ function group {
             shift
             group_describe "$@"
             ;;
+        power_on)
+            shift
+            group_action power_on "$@"
+            ;;
+        power_off)
+            shift
+            group_action power_off "$@"
+            ;;
+        power_reset)
+            shift
+            group_action power_reset "$@"
+            ;;
+        power_status)
+            shift
+            group_action power_status "$@"
+            ;;
         reboot)
             shift
             group_action reboot "$@"
@@ -59,7 +75,6 @@ function group_help {
     echo    "ACTIONS:"
     echo -e "\tboot [group list] : Boots the nodes in the given group with the group's default bos template."
     echo -e "\tconfig [group list] : Configures the nodes in the given group with the group's default cfs config."
-    echo -e "\tclear_errors [group list] : Resets the error countes for cfs and enables the nodes in the given groups."
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
@@ -108,6 +123,14 @@ function group_action {
             node_config $NODES
         elif [[ "$ACTION" == "clear_errors" ]]; then
             node_clear_errors $NODES
+        elif [[ "$ACTION" == "power_on" ]]; then
+            power_action on $NODES
+        elif [[ "$ACTION" == "power_off" ]]; then
+            power_action off $NODES
+        elif [[ "$ACTION" == "power_reset" ]]; then
+            power_reset $NODES
+        elif [[ "$ACTION" == "power_status" ]]; then
+            power_status $NODES
         else
             node_action "$ACTION" $NODES
         fi

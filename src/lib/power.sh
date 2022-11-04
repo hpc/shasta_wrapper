@@ -4,22 +4,27 @@ function power {
     case "$1" in
         off)
             shift
-            exit power_action off "$@"
+            power_action off "$@"
+	    exit $?
             ;;
         on)
             shift
-            exit power_action on "$@"
+            power_action on "$@"
+	    exit $?
             ;;
         reset)
             shift
-            exit power_action off "$@"
+            power_action off "$@"
+	    exit $?
             ;;
         status)
             shift
-            exit power_status "$@"
+            power_status "$@"
+	    exit $?
             ;;
         *)
-            exit power_help
+            power_help
+	    exit $?
             ;;
     esac
 }

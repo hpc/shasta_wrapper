@@ -66,14 +66,22 @@ function cfs_job_list {
     if [[ "$1" == '-l' ]]; then
         printf "${COLOR_BOLD}%19s   %44s   %20s   %8s %s$COLOR_RESET\n" DATE ID CONFIG STATE NODES
         printf "%19s   %44s   %20s   %8s %s\n" $(echo "$CFS_JOBS_RAW" |\
-            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)   \(.ansible.limit)"' |\
+            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)/\(.status.session.succeeded)   \(.ansible.limit)"' |\
             sed 's/"//g' |\
+            sed 's|running/none|running|g' |\
+            sed 's|pending/none|pending|g' |\
+            sed 's|complete/false|fail|g' |\
+            sed 's|complete/true|success|g' |\
             sort)
     elif [[ -z "$1" ]]; then
         printf "${COLOR_BOLD}%19s   %44s   %20s   %8s$COLOR_RESET\n" DATE ID CONFIG STATE
         printf "%19s   %44s   %20s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
-            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)"' |\
+            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)/\(.status.session.succeeded)"' |\
             sed 's/"//g' |\
+            sed 's|running/none|running|g' |\
+            sed 's|pending/none|pending|g' |\
+            sed 's|complete/false|failed|g' |\
+            sed 's|complete/true|success|g' |\
             sort)
     else
         echo "Usage: $0 cfs job list <options>"

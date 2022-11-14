@@ -250,7 +250,11 @@ function cfs_clear_node_counters {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        cray cfs components update --error-count 0 "$NODE" --enabled true > /dev/null 2>&1 &
+        curl -s -k -i \
+        -X PATCH -d '{ "enabled": true, "errorCount": 0 }' \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        "https://api-gw-service-nmn.local/apis/cfs/v2/components/$NODE" > /dev/null 2>&1 &
     done
 
     i=0
@@ -273,7 +277,11 @@ function cfs_clear_node_state {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        cray cfs components update --error-count 0 "$NODE" --state '[]' --enabled true > /dev/null 2>&1 &
+        curl -s -k -i \
+        -X PATCH -d '{ "state": [], "enabled": true, "errorCount": 0 }' \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        "https://api-gw-service-nmn.local/apis/cfs/v2/components/$NODE" > /dev/null 2>&1 &
     done
 
     i=0

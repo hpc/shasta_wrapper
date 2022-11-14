@@ -1,6 +1,6 @@
 #!/bin/bash
 
-xname=$(/root/bin/nid2xname $1)
+xname=$(nid2xname $1)
 if [[ -z "$xname" ]]; then
   echo "Do not understand $1" 1>&2
   exit 1

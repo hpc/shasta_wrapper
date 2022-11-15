@@ -76,7 +76,7 @@ function refresh_recipes {
 function recipe_list {
     refresh_recipes
     cluster_defaults_config
-    echo "CREATED                            ID                                     NAME(default for group)"
+    echo "${COLOR_BOLD}CREATED                            ID                                     NAME(default for group)${COLOR_RESET}"
     for id in "${!RECIPE_ID2NAME[@]}"; do
         name="${RECIPE_ID2NAME[$id]}"
         created="${RECIPE_ID2CREATED[$id]}"

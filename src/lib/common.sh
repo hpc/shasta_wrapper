@@ -148,6 +148,11 @@ function edit_file_nolock {
     return 0
 }
 
+function refresh_node_conversions_data {
+    rm -f "$NODE_CONVERSION_FILE"
+    refresh_sat_data
+}
+
 ## get_node_conversions
 # Setup node conversions for all different node names and types (ie xname to nid) if it hasn't been done already.
 function get_node_conversions {
@@ -162,6 +167,7 @@ function get_node_conversions {
 ## refresh_sat_data
 # Pull down all the data from sat and use it to build a table of all conversion information (is nid to xname)
 function refresh_sat_data {
+    local XNAME NID FULLNID NMN NODES
     local SAT_FILE=/usr/share/shasta_wrapper/sat.out
 
     sat status --no-headings --no-borders --fields xname,nid | awk '{print $1 " " $2}' > "$SAT_FILE"
@@ -331,4 +337,3 @@ function json_set_field {
     cat $FILE | jq "$FIELD" > /dev/null || return 1
     return 0
 }
-

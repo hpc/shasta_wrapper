@@ -60,6 +60,10 @@ function node {
             shift
             node_action reboot "$@"
             ;;
+        resetdb)
+            shift
+            node_reset_db
+            ;;
         sho*)
             shift
             node_describe "$@"
@@ -94,6 +98,7 @@ function node_help {
     echo -e "\tpower_reset [nodes]: reset node power"
     echo -e "\tpower_status [nodes]: Get node power status"
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
+    echo -e "\tresetdb : Clears the current database on what nodes are available and recomputes it. Usefull afer adding or removing nodes from a system(ie adding a cabinet)"
     echo -e "\tshow [node] : show details on a specific node group"
     echo -e "\tshutdown [nodes] : shutdown all nodes in the group"
     echo -e "\tunconf : List all unconfigured nodes"
@@ -144,6 +149,11 @@ function node_list {
         echo
         echo
     done
+}
+
+function node_reset_db {
+    refresh_node_conversions_data
+    echo "Node database has been refreshed"
 }
 
 ## node_describe

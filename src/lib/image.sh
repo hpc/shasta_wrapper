@@ -327,17 +327,17 @@ function image_build_bare {
         die "[$GROUP_NAME] Error image build failed! See logs for details"
     fi
 
-    IMAGE_ID=$(cray ims jobs describe $IMS_JOB_ID  --format json | jq .resultant_image_id | sed 's/"//g' )
+    IMAGE_ID=$(image_describe $IMS_JOB_ID | jq .resultant_image_id | sed 's/"//g' )
     echo "  Grabbing image_id = '$IMAGE_ID' from output..."
 
-    verbose_cmd cray ims images describe --format json "$IMAGE_ID" > /dev/null 2>&1
+    verbose_cmd image_describe "$IMAGE_ID" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
     fi
     echo "  Ok, image does appear to exist. Cleaning up the job..."
 
-    verbose_cmd cray ims jobs delete --format json $IMS_JOB_ID
+    verbose_cmd image_job_delete $IMS_JOB_ID
 
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID" 1>&2
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID"
@@ -472,7 +472,7 @@ function image_configure {
 
     # Delete any existing cfs session that has the same 
     # name to ensure we don't screw things up
-    cray cfs sessions delete --format json "$SESSION_NAME" > /dev/null 2>&1
+    cfs_job_delete "$SESSION_NAME" > /dev/null 2>&1
 
     ## Launch the cfs configuration job. 
     # We try multiple times as sometimes cfs is in a bad state and won't 
@@ -503,14 +503,14 @@ function image_configure {
 
     ## Show the logs for the cfs configure job
     #
-    cmd_wait_output "job" cray cfs sessions describe --format json "$SESSION_NAME"
+    cmd_wait_output "job" cfs_job_describe "$SESSION_NAME"
 
-    JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
+    JOB_ID=$(cfs_job_describe $SESSION_NAME  | jq '.status.session.job' | sed 's/"//g')
     cfs_log_job "$SESSION_NAME"
 
-    cmd_wait_output 'complete' cray cfs sessions describe --format json "$SESSION_NAME"
+    cmd_wait_output 'complete' cfs_job_describe "$SESSION_NAME"
 
-    cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.session.succeeded' | grep -q 'true'
+    cfs_job_describe "$SESSION_NAME" | jq '.status.session.succeeded' | grep -q 'true'
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] image configuation failed"
         die "[$GROUP_NAME] image configuation failed"
@@ -519,13 +519,13 @@ function image_configure {
     ## Validate that we got an image and set that as the RETURN so that if 
     # parent function wants it it can use it
 
-    NEW_IMAGE_ID=$(cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.artifacts[0].result_id' | sed 's/"//g')
+    NEW_IMAGE_ID=$(cfs_job_describe "$SESSION_NAME" | jq '.status.artifacts[0].result_id' | sed 's/"//g')
 
     if [[ -z "$NEW_IMAGE_ID" ]]; then
         echo "[$GROUP_NAME] Could not determine image id for configured image."
         die "[$GROUP_NAME] Could not determine image id for configured image."
     fi
-    verbose_cmd cray ims images describe --format json "$NEW_IMAGE_ID"
+    verbose_cmd cray_ims_describe "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
         die "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"

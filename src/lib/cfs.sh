@@ -240,7 +240,7 @@ function cfs_apply {
     cfs_log_job "$NAME"
 
 
-    cray cfs sessions delete "$NAME"
+    cfs_job_delete "$NAME"
 }
 
 ## cfs_clear_node_counters

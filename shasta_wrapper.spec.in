@@ -20,6 +20,17 @@ Source0: %{name}.tar.gz
 BuildRoot: %{_topdir}/BUILDROOT/%{name}-%{version}-%{release}
 BuildArch: noarch
 Requires: craycli
+Requires: curl
+Requires: jq
+Requires: gawk
+Requires: sed
+Requires: cray-sat-podman
+Requires: kubectl
+Requires: bash
+Requires: grep
+Requires: tput
+Requires: util-linux
+
 
 %description
 Provides a more streamlimed interface for managing the shasta cluster.

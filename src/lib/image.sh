@@ -109,8 +109,11 @@ function image_list {
 ## image_describe
 # show inormation on the given image
 function image_describe {
-    rest_api_query "ims/images/$1" | jq
-    return $?
+    local OUTPUT RET
+    OUTPUT=$(rest_api_query "ims/images/$1")
+    RET=$?
+    echo "$OUTPUT" | jq
+    return $RET
 }
 
 ## image_delete
@@ -188,7 +191,7 @@ function image_build {
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
 
-    curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/images/$CONFIG_NAME" > /dev/null 2>&1
+    cfs_describe "$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         die "'$CONFIG_NAME' is not a valid configuration."
     fi
@@ -239,7 +242,7 @@ function image_map {
         echo "USAGE: $0 image map [bos template] [image id]" 1>&2
         exit 1
     fi
-    IMAGE_RAW=$(curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/images" | jq ".[] | select(.id == \"$IMAGE_ID\")")
+    IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.id == \"$IMAGE_ID\")")
 
     IMAGE_ETAG=$(echo "$IMAGE_RAW" | jq '.link.etag' | sed 's/"//g')
     IMAGE_PATH=$(echo "$IMAGE_RAW" | jq '.link.path' | sed 's/"//g')
@@ -318,18 +321,18 @@ function image_build_bare {
 
     image_logwatch "$JOB_ID"
 
-    set +e
-    cmd_wait_output "success|error" curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/jobs/$IMS_JOB_ID"
+    cmd_wait_output "success|error" image_job_describe "$IMS_JOB_ID"
 
-    curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/jobs/$IMS_JOB_ID" | grep "status" | grep -q 'success'
+    image_job_describe "$IMS_JOB_ID" | grep "status" | grep -q 'success'
     if [[ "$?" -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
     fi
 
-    IMAGE_ID=$(image_describe $IMS_JOB_ID | jq .resultant_image_id | sed 's/"//g' )
+    IMAGE_ID=$(image_job_describe "$IMS_JOB_ID" | jq .resultant_image_id | sed 's/"//g' )
     echo "  Grabbing image_id = '$IMAGE_ID' from output..."
 
+    set +e
     verbose_cmd image_describe "$IMAGE_ID" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
@@ -525,7 +528,7 @@ function image_configure {
         echo "[$GROUP_NAME] Could not determine image id for configured image."
         die "[$GROUP_NAME] Could not determine image id for configured image."
     fi
-    verbose_cmd cray_ims_describe "$NEW_IMAGE_ID"
+    verbose_cmd image_describe "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
         die "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"

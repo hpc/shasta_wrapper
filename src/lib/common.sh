@@ -147,19 +147,34 @@ function edit_file_nolock {
     fi
     return 0
 }
-
+## refresh_node_conversions_data
+# Delete and regenerate the node conversion database
 function refresh_node_conversions_data {
     rm -f "$NODE_CONVERSION_FILE"
     refresh_sat_data
 }
 
+## rest_api_query
+# Send a query request to the api server
 function rest_api_query {
     local API="$1"
     local RAW=$(curl -w 'http_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
-    OUTPUT=$(echo "$RAW" | head -n -1)
-    HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    local OUTPUT=$(echo "$RAW" | head -n -1)
+    local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
     echo "$OUTPUT"
     echo $HTTP_CODE | grep -q 200
+    return $?
+}
+
+## rest_api_delete
+# Send a delete request to the api server
+function rest_api_delete {
+    local API="$1"
+    local RAW=$(curl -X DELETE -w 'http_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    local OUTPUT=$(echo "$RAW" | head -n -1)
+    local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    echo "$OUTPUT"
+    echo $HTTP_CODE | grep -Eq '200|204'
     return $?
 }
 

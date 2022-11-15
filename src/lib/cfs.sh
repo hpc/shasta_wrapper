@@ -115,7 +115,8 @@ function cfs_delete {
         echo "USAGE: $0 cfs delete [cfs config]"
 	return 1
     fi
-    cray cfs configurations delete --format json "$@"
+    echo cray cfs configurations delete --format json "$1"
+    rest_api_delete "cfs/v2/configurations/$1"
     return $?
 }
 
@@ -156,7 +157,7 @@ function cfs_clone {
     tmpdir
     TMPFILE="$TMPDIR/cfs_config.json"
 
-    cfs_describe $SRC --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE"
+    cfs_describe $SRC | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE"
 
     cray cfs configurations update $DEST --file "$TMPFILE" --format json > /dev/null 2>&1
     set +e

@@ -164,7 +164,7 @@ function bos_delete {
         echo "USAGE: $0 bos delete [bos config]"
 	return 1
     fi
-    cray bos sessiontemplate delete --format json "$@"
+    rest_api_delete "bos/v1/sessiontemplate/$1"
     return $?
 }
 
@@ -205,7 +205,7 @@ function bos_clone {
     tmpdir
     TMPFILE="$TMPDIR/bos_sessiontemplate.json"
 
-    bos_describe $SRC --format json > "$TMPFILE"
+    bos_describe $SRC > "$TMPFILE"
 
     cray bos sessiontemplate create --name $DEST --file "$TMPFILE" --format json
     set +e
@@ -219,10 +219,10 @@ function bos_update_template {
     local VALUE="$3"
 
     set -e
-    bos_describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    bos_describe "$TEMPLATE" > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     json_set_field "$BOS_CONFIG_DIR/$TEMPLATE.json" "$KEY" "$VALUE"
-    cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" --format json > /dev/null 2>&1
-    bos_describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" > /dev/null 2>&1
+    bos_describe "$TEMPLATE" > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     cat "$BOS_CONFIG_DIR/$TEMPLATE.json" | jq "$KEY" > /dev/null
     set +e
     return $?
@@ -240,7 +240,7 @@ function bos_edit {
     bos_exit_if_not_valid "$CONFIG"
 
     set -e
-    bos_describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json"
+    bos_describe $CONFIG > "$BOS_CONFIG_DIR/$CONFIG.json"
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         rm -f "$BOS_CONFIG_DIR/$CONFIG.json"

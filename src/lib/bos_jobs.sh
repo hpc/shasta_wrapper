@@ -93,7 +93,7 @@ function bos_job_list {
 # describe the bos job
 function bos_job_describe {
     if [[ -z "$1" ]]; then
-        echo "USAGE: $0 bos job delete [jobid]"
+        echo "USAGE: $0 bos job show [jobid]"
 	return 1
     fi
     rest_api_query "bos/v1/session/$1"
@@ -115,7 +115,7 @@ function bos_job_delete {
         elif [[ "${JOBS[0]}" == "--complete" ]]; then
             refresh_bos_jobs
             JOBS=( )
-           ALL_JOBS=( "${BOS_JOBS[@]}" )
+            ALL_JOBS=( "${BOS_JOBS[@]}" )
             for job in "${BOS_JOBS[@]}"; do
                 comp=`rest_api_query "bos/v1/session/$job" | jq 'select(.complete == true) .error_count'`
                 if [ "$comp" = "0" ]; then
@@ -140,7 +140,11 @@ function bos_job_delete {
 
     # Delete the jobs
     for job in "${JOBS[@]}"; do
-        verbose_cmd cray bos session delete $job --format json
+        if [[ -z "$job" ]]; then
+            continue
+        fi
+        echo cray bos session delete $job --format json
+        rest_api_delete "bos/v1/session/$job"
     done
 }
 ## bos_job_exit_if_not_valid
@@ -163,7 +167,7 @@ function bos_job_log {
     fi
     bos_job_exit_if_not_valid "$JOB"
 
-    KUBE_JOB_ID=$(bos_job_describe "$JOB" --format json | jq .job | sed 's/"//g')
+    KUBE_JOB_ID=$(bos_job_describe "$JOB" | jq .job | sed 's/"//g')
 
     if [[ -z "$KUBE_JOB_ID" ]]; then
         die "Failed to find bos job $JOB"

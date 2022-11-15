@@ -120,7 +120,11 @@ function image_job_delete {
     fi
 
     for job in "${JOBS[@]}"; do
-        verbose_cmd cray ims jobs delete --format json $job
+        if [[ -z "$job" ]]; then
+            continue
+        fi
+        echo cray ims jobs delete --format json $job
+        rest_api_delete "ims/jobs/$job"
     done
 }
 

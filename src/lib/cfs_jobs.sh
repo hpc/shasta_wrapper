@@ -132,6 +132,10 @@ function cfs_job_delete {
     fi
 
     for job in "${JOBS[@]}"; do
-        verbose_cmd cray cfs sessions delete --format json $job
+        if [[ -z "$job" ]]; then
+            continue
+        fi
+        echo cray cfs sessions delete --format json $job
+        rest_api_delete "cfs/v2/sessions/$job"
     done
 }

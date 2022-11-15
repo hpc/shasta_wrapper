@@ -121,7 +121,11 @@ function image_delete {
         exit 1
     fi
     for image in "$@"; do
-        verbose_cmd cray ims images delete --format json "$image" | grep -P '\S'
+        if [[ -z "$image" ]]; then
+            continue
+        fi
+        echo cray ims images delete --format json "$image" | grep -P '\S'
+        rest_api_delete "ims/images/$image"
     done
     echo "Cleaning up image artifacts..."
     image_clean_deleted_artifacts

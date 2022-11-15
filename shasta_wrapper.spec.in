@@ -19,7 +19,7 @@ Group: System Environment/Base
 Source0: %{name}.tar.gz
 BuildRoot: %{_topdir}/BUILDROOT/%{name}-%{version}-%{release}
 BuildArch: noarch
-Requires: craycli
+Requires: craycli >= 0.46.0
 Requires: curl
 Requires: jq
 Requires: gawk

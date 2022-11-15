@@ -74,7 +74,7 @@ function refresh_images {
     echo "# cray ims images list --format json | jq '.[] | \"\\(.created)   \\(.id)   \\(.name)\"' | sed 's/\"//g' | sort"
 
     IFS=$'\n'
-    RAW=( $(cray ims images list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
+    RAW=( $(rest_api_query "ims/images" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
     IFS=$' \t\n'
 
     for image in "${RAW[@]}"; do
@@ -109,7 +109,8 @@ function image_list {
 ## image_describe
 # show inormation on the given image
 function image_describe {
-    verbose_cmd cray ims images describe --format json "$1"
+    rest_api_query "ims/images/$1" | jq
+    echo $?
 }
 
 ## image_delete
@@ -183,7 +184,7 @@ function image_build {
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
 
-    cray cfs configurations describe --format json "$CONFIG_NAME" > /dev/null 2>&1
+    curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/images/$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         die "'$CONFIG_NAME' is not a valid configuration."
     fi
@@ -234,7 +235,7 @@ function image_map {
         echo "USAGE: $0 image map [bos template] [image id]" 1>&2
         exit 1
     fi
-    IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.id == \"$IMAGE_ID\")")
+    IMAGE_RAW=$(curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/images" | jq ".[] | select(.id == \"$IMAGE_ID\")")
 
     IMAGE_ETAG=$(echo "$IMAGE_RAW" | jq '.link.etag' | sed 's/"//g')
     IMAGE_PATH=$(echo "$IMAGE_RAW" | jq '.link.path' | sed 's/"//g')
@@ -314,9 +315,9 @@ function image_build_bare {
     image_logwatch "$JOB_ID"
 
     set +e
-    cmd_wait_output "success|error" cray ims jobs describe --format json $IMS_JOB_ID
+    cmd_wait_output "success|error" curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/jobs/$IMS_JOB_ID"
 
-    cray ims jobs describe --format json $IMS_JOB_ID | grep "status" | grep -q 'success'
+    curl -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/ims/jobs/$IMS_JOB_ID" | grep "status" | grep -q 'success'
     if [[ "$?" -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
@@ -543,4 +544,3 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images --format json "$artifact" | grep -P '\S'
     done
 }
-

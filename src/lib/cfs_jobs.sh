@@ -51,10 +51,10 @@ function refresh_cfs_jobs_raw {
     if [[ -n "$CFS_JOBS_RAW" && "$1" != "--force" ]]; then
         return
     fi
-    CFS_JOBS_RAW=$(cray cfs sessions list --format json)
+    CFS_JOBS_RAW=$(rest_api_query "cfs/v2/sessions")
 
-    if [[ -z "#CFS_JOBS_RAW" ]]; then
-        die "failed to gedt cfs data"
+    if [[ -z "${CFS_JOBS_RAW[@]}" ]]; then
+        die "failed to get cfs data"
     fi
 }
 

@@ -153,6 +153,16 @@ function refresh_node_conversions_data {
     refresh_sat_data
 }
 
+function rest_api_query {
+    local API="$1"
+    local RAW=$(curl -w 'http_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    OUTPUT=$(echo "$RAW" | head -n -1)
+    HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    echo "$OUTPUT"
+    echo $HTTP_CODE | grep -q 200
+    return $?
+}
+
 ## get_node_conversions
 # Setup node conversions for all different node names and types (ie xname to nid) if it hasn't been done already.
 function get_node_conversions {

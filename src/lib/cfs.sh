@@ -81,7 +81,7 @@ function cfs_list {
     cluster_defaults_config
 
     # Get all config data
-    CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
+    CONFIGS=( $(rest_api_query "cfs/v2/configurations" | jq '.[].name' | sed 's/"//g'))
     echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
 
     # Any cfs configs that are set as a default for an ansible group should 
@@ -104,7 +104,7 @@ function cfs_describe {
         echo "USAGE: $0 cfs describe [cfs config]"
 	return 1
     fi
-    cray cfs configurations describe --format json "$@"
+    rest_api_query "cfs/v2/configurations/$1"
     return $?
 }
 
@@ -176,7 +176,7 @@ function cfs_edit {
     (
         set -e
         flock -x 42
-        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
+        cfs_describe $CONFIG | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
         if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
             rm -f "$CONFIG_DIR/$CONFIG.json"
@@ -303,7 +303,7 @@ function cfs_clear_node_state {
 # Get a list of the nodes that cfs has not configured, and the group that node is a member of
 function cfs_unconfigured {
     refresh_ansible_groups
-    NODES=( $(cray cfs components list --format json | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
+    NODES=( $(rest_api_query "cfs/v2/components" | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
 
     echo -e "${COLOR_BOLD}XNAME\t\tGROUP$COLOR_RESET"
     for node in "${NODES[@]}"; do
@@ -329,8 +329,8 @@ function cfs_log_job {
     fi
 
     set -e
-    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
-    JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
+    cmd_wait_output 'job' rest_api_query "cfs/v2/sessions/$CFS"
+    JOB=$(rest_api_query "cfs/v2/sessions/$CFS" | jq '.status.session.job' | sed 's/"//g')
 
     cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
     POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
@@ -458,7 +458,7 @@ function cfs_update {
             set -e
             flock -x 42
 
-            cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
+            cfs_describe $CONFIG | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
 
             if [[ ! -s "$FILE" ]]; then
                 rm -f "$FILE"
@@ -531,4 +531,3 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
-

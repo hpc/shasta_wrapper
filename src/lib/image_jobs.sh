@@ -51,10 +51,10 @@ function refresh_image_jobs_raw {
     if [[ -n "$IMS_JOBS_RAW" && "$1" != "--force" ]]; then
         return
     fi
-    IMS_JOBS_RAW=$(cray ims jobs list --format json)
+    IMS_JOBS_RAW=$(rest_api_query "ims/jobs")
     while [[ -z "$IMS_JOBS_RAW" ]]; do
 	sleep 2
-        IMS_JOBS_RAW=$(cray ims jobs list --format json)
+        IMS_JOBS_RAW=$(rest_api_query "ims/jobs")
     done
 
     if [[ -z "$IMS_JOBS_RAW" ]]; then
@@ -144,7 +144,7 @@ function image_job_log {
     fi
     image_job_exit_if_not_valid "$ID"
 
-    cmd_wait_output "job" cray ims jobs describe --format json "$ID"
+    cmd_wait_output "job" rest_api_query "ims/jobs/$ID"
     refresh_image_jobs_raw
 
     JOB_ID=$(echo "$IMS_JOBS_RAW" | jq ".[] | select(.id == \"$ID\")" | jq '.kubernetes_job' | sed 's/"//g')

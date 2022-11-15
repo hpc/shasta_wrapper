@@ -203,7 +203,7 @@ function node_describe {
     fi
     echo
     echo "# CFS"
-    RAW_CFS=$(cray cfs components describe "$NODE" --format json)
+    RAW_CFS=$(rest_api_query "cfs/v2/components/$NODE")
     echo -n "configurationStatus:  "
     echo "$RAW_CFS" | jq '.configurationStatus' | sed 's/"//g'
     echo -n "enabled:              "

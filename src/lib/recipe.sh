@@ -55,7 +55,7 @@ function refresh_recipes {
         return;
     fi
 
-    RECIPE_RAW=$(cray ims recipes list --format json )
+    RECIPE_RAW=$(rest_api_query "ims/recipes" )
 
     IFS=$'\n'
     RECIPES=( $( echo "$RECIPE_RAW" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
@@ -203,4 +203,3 @@ function recipe_create {
         --link-type s3 \
         --link-path s3://ims/recipes/$RECIPE_ID/$ARTIFACT_FILE
 }
-

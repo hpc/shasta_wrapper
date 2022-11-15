@@ -83,7 +83,7 @@ function refresh_bos_raw {
     if [[ -n "$BOS_RAW" && "$1" != '--force' ]]; then
         return 0
     fi
-    BOS_RAW=$(cray bos sessiontemplate list --format json)
+    BOS_RAW=$(rest_api_query "bos/v1/sessiontemplate")
     if [[ -z "$BOS_RAW" ]]; then
        echo "Error retrieving bos data... Some information may be unavailable"
        return 1
@@ -153,7 +153,7 @@ function bos_describe {
         echo "USAGE: $0 bos describe [bos config]"
 	return 1
     fi
-    cray bos sessiontemplate describe --format json "$@"
+    rest_api_query "bos/v1/sessiontemplate/$1"
     return $?
 }
 

@@ -1,4 +1,3 @@
-
 function regression_syntax_recipe {
     echo "## recipe"
     function_ok refresh_recipes
@@ -14,7 +13,7 @@ function regression_recipe {
     echo "## recipe"
     ok "refresh_recipes returns ok" refresh_recipes
     ok "recipe_list returns ok" recipe_list
-    ok_stdout "recipe_list has output" "cos" recipe_list
+    ok_stdout "recipe_list has output" "cray" recipe_list
 
     echo
 }

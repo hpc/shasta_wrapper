@@ -110,7 +110,7 @@ function image_list {
 # show inormation on the given image
 function image_describe {
     rest_api_query "ims/images/$1" | jq
-    echo $?
+    return $?
 }
 
 ## image_delete

@@ -91,6 +91,7 @@ function node_help {
     echo -e "\t2xname [nodes] : Convert given nodes to xname format."
     echo -e "\tboot [nodes] : Boots the given nodes into the given group's default bos template."
     echo -e "\tconfig [nodes] : Configures the given nodes with the given group's default cfs config."
+    echo -e "\tclear_errors [nodes] : Resets the node error counters to 0."
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
     echo -e "\tpower_on <options> [nodes]: Power on given nodes"

@@ -75,6 +75,7 @@ function group_help {
     echo    "ACTIONS:"
     echo -e "\tboot [group list] : Boots the nodes in the given group with the group's default bos template."
     echo -e "\tconfig [group list] : Configures the nodes in the given group with the group's default cfs config."
+    echo -e "\tclear_errors [group list] : Resets the node error counters to 0."
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"

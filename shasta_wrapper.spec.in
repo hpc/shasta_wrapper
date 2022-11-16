@@ -28,7 +28,7 @@ Requires: cray-sat-podman
 Requires: kubectl
 Requires: bash
 Requires: grep
-Requires: tput
+Requires: ncurses-utils
 Requires: util-linux
 
 

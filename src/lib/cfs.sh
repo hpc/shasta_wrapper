@@ -330,10 +330,10 @@ function cfs_log_job {
     fi
 
     set -e
-    cmd_wait_output 'job' rest_api_query "cfs/v2/sessions/$CFS"
+    cmd_wait_output 'job' rest_api_query "cfs/v2/sessions/$CFS" 2>&1
     JOB=$(rest_api_query "cfs/v2/sessions/$CFS" | jq '.status.session.job' | sed 's/"//g')
 
-    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
+    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services 2>&1
     POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
     set +e
 

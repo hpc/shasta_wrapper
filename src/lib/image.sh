@@ -354,7 +354,7 @@ function image_logwatch {
     KUBE_JOB="$1"
 
     sleep 3
-    cmd_wait_output "READY" kubectl get pods -l job-name=$KUBE_JOB -n ims
+    cmd_wait_output "READY" kubectl get pods -l job-name=$KUBE_JOB -n ims 2>&1
     POD_ID=$(kubectl get pods -l job-name=$KUBE_JOB -n ims| tail -n 1 | awk '{print $1}')
 
     verbose_cmd kubectl describe job -n ims $JOB_ID | grep -q 'Pods Statuses:  0 Running / 1 Succeeded'

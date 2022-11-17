@@ -92,7 +92,7 @@ function refresh_bos_raw {
 }
 
 ## bos_get_default_node_group
-# Get the group to use for the given node. This is done due to some ansible groups not having any defaults for booting, thus for this we are looking for what group to consider the node from the list of groups that have assigned default bos templates. 
+# Get the group to use for the given node. This is done due to some ansible groups not having any defaults for booting, thus for this we are looking for what group to consider the node from the list of groups that have assigned default bos templates.
 function bos_get_default_node_group {
     local NODE="$1"
     cluster_defaults_config
@@ -131,7 +131,7 @@ function bos_list {
         die "Error unable to get bos information"
     fi
 
-    # When a bos template is set as default for an ansible group, display that 
+    # When a bos template is set as default for an ansible group, display that
     # ansible group in bold in paratheses next to it
     BOS_TEMPLATES=( )
     for line in "${BOS_LINES[@]}"; do
@@ -248,7 +248,7 @@ function bos_edit {
     fi
 
     set +e
-    edit_file "$BOS_CONFIG_DIR/$CONFIG.json"
+    edit_json_file "$BOS_CONFIG_DIR/$CONFIG.json"
     if [[ "$?" == 0 ]]; then
         echo -n "Updating '$CONFIG' with new data..."
         verbose_cmd cray bos sessiontemplate create --name $CONFIG --file "$BOS_CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
@@ -259,7 +259,7 @@ function bos_edit {
 }
 
 ## bos_action
-# Perform a given action with the given bos template against the given nodes. 
+# Perform a given action with the given bos template against the given nodes.
 # For example, reboot some nodes with the cos-sessiontemplate.
 function bos_action {
     local ACTION="$1"
@@ -272,7 +272,7 @@ function bos_action {
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
-        
+
     local TARGET=( $RETURN )
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING

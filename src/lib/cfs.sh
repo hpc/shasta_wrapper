@@ -84,7 +84,7 @@ function cfs_list {
     CONFIGS=( $(rest_api_query "cfs/v2/configurations" | jq '.[].name' | sed 's/"//g'))
     echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
 
-    # Any cfs configs that are set as a default for an ansible group should 
+    # Any cfs configs that are set as a default for an ansible group should
     # have the ansible group name in paretheses and bolded.
     for CONFIG in "${CONFIGS[@]}"; do
         echo -n "$CONFIG"
@@ -187,7 +187,7 @@ function cfs_edit {
 
 
         set +e
-        edit_file "$CONFIG_DIR/$CONFIG.json"
+        edit_json_file "$CONFIG_DIR/$CONFIG.json"
         if [[ "$?" == 0 ]]; then
             echo -n "Updating '$CONFIG' with new data..."
             verbose_cmd cray cfs configurations update $CONFIG --file ""$CONFIG_DIR/$CONFIG.json"" --format json > /dev/null 2>&1
@@ -295,7 +295,7 @@ function cfs_clear_node_state {
         sleep 2
     done
     echo
-    echo "All nodes have had their cfs state reset. This should cause new cfs jobs to spawn shortly." 
+    echo "All nodes have had their cfs state reset. This should cause new cfs jobs to spawn shortly."
     echo "If you have had a lot of failed cfs runs you may need to restart the cfs batcher, as it backs off of launching when a lot have failed"
     echo
 }
@@ -374,7 +374,7 @@ function cfs_logwatch {
         sed 's/,//g') )
 
     # init container logs
-    # TODO: This method has an issue where logs will only be shown if the init 
+    # TODO: This method has an issue where logs will only be shown if the init
     # containers are successfull. Need to look at this.
     for cont in "${INIT_CONTAIN[@]}"; do
         echo
@@ -387,7 +387,7 @@ function cfs_logwatch {
     done
 
     # container logs
-    # We look and inventory first as it's run before and ansible ones, and is 
+    # We look and inventory first as it's run before and ansible ones, and is
     # alphabetically after in the list
     echo
     echo

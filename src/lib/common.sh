@@ -19,7 +19,7 @@ function die {
     exit 2
 }
 
-## tmpdir 
+## tmpdir
 # make a demporary directory and report it's location in the RETURN variable
 function tmpdir {
     if [[ -z "$TMPDIR" ]]; then
@@ -119,13 +119,42 @@ function verbose_cmd {
     return $?
 }
 
+## edit_json_file
+# open the given file with the given command (blocking wait)
+function edit_json_file {
+    local FILE AFTER BEFORE RET
+    local FILE="$1"
+
+    edit_file "$FILE"
+    cat "$FILE" | jq > /dev/null
+    RET=$?
+    while [[ $RET -ne 0 ]]; do
+        echo "Error! Syntax errors in file!"
+        echo "Hit enter to re-open editor and correct or ctl-c to discard changes"
+        read
+        edit_file "$FILE" 1
+        cat "$FILE" | jq > /dev/null
+        RET=$?
+    done
+}
+
 ## edit_file
 # open the given file with the given command (blocking wait)
 function edit_file {
-    local FILE AFTER BEFORE
+    local FILE AFTER BEFORE RET
     local FILE="$1"
+    local NO_CHANGES_OK="$2"
 
-    flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE" || die "Failed to get lock on $FILE. Someone else is modifying it"
+    flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE"
+    RET=$?
+    if [[ $RET -eq 1 ]]; then
+        die "Failed to get lock on $FILE. Someone else is modifying it"
+    elif [[ $RET -eq 2 ]]; then
+        if [[ "$NO_CHANGES_OK" -ne 1 ]]; then
+            echo "No changes made, aborting!"
+            exit 0
+        fi
+    fi
 }
 
 ## edit_file_nolock
@@ -143,7 +172,7 @@ function edit_file_nolock {
     AFTER=$(md5sum "$FILE")
 
     if [[ "$BEFORE" == "$AFTER" ]]; then
-        return 1
+        return 2
     fi
     return 0
 }

@@ -121,40 +121,46 @@ function verbose_cmd {
 
 ## edit_json_file
 # open the given file with the given command (blocking wait)
-function edit_json_file {
+function check_json_file {
     local FILE AFTER BEFORE RET
     local FILE="$1"
 
-    edit_file "$FILE"
     cat "$FILE" | jq > /dev/null
-    RET=$?
-    while [[ $RET -ne 0 ]]; do
-        echo "Error! Syntax errors in file!"
-        echo "Hit enter to re-open editor and correct or ctl-c to discard changes"
-        read
-        edit_file "$FILE" 1
-        cat "$FILE" | jq > /dev/null
-        RET=$?
-    done
+    return $?
 }
 
 ## edit_file
 # open the given file with the given command (blocking wait)
 function edit_file {
-    local FILE AFTER BEFORE RET
+    local FILE AFTER BEFORE RET NO_CHANGES_OK
     local FILE="$1"
-    local NO_CHANGES_OK="$2"
+    local FILE_TYPE="$2"
 
-    flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE"
-    RET=$?
-    if [[ $RET -eq 1 ]]; then
-        die "Failed to get lock on $FILE. Someone else is modifying it"
-    elif [[ $RET -eq 2 ]]; then
-        if [[ "$NO_CHANGES_OK" -ne 1 ]]; then
-            echo "No changes made, aborting!"
-            exit 0
+    RET=1
+    while [[ $RET -ne 0 ]]; do
+        flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE"
+        RET=$?
+        if [[ $RET -eq 1 ]]; then
+            die "Failed to get lock on $FILE. Someone else is modifying it"
+        elif [[ $RET -eq 2 ]]; then
+            if [[ "$NO_CHANGES_OK" -ne 1 ]]; then
+                echo "No changes made, aborting!"
+                exit 0
+            fi
         fi
-    fi
+        if [[ "$FILE_TYPE" == "json" ]]; then
+            check_json_file "$FILE"
+            RET=$?
+        else
+            RET=0
+        fi
+        if [[ $RET -ne 0 ]]; then
+            echo "Error! Syntax errors found!"
+            echo "Press enter to fix file. Hit ctrl-c to discard changes to file"
+            read
+            NO_CHANGES_OK=1
+        fi
+    done
 }
 
 ## edit_file_nolock

@@ -187,7 +187,7 @@ function cfs_edit {
 
 
         set +e
-        edit_json_file "$CONFIG_DIR/$CONFIG.json"
+        edit_file "$CONFIG_DIR/$CONFIG.json" 'json'
         if [[ "$?" == 0 ]]; then
             echo -n "Updating '$CONFIG' with new data..."
             verbose_cmd cray cfs configurations update $CONFIG --file ""$CONFIG_DIR/$CONFIG.json"" --format json > /dev/null 2>&1

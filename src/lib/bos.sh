@@ -248,7 +248,7 @@ function bos_edit {
     fi
 
     set +e
-    edit_json_file "$BOS_CONFIG_DIR/$CONFIG.json"
+    edit_file "$BOS_CONFIG_DIR/$CONFIG.json" 'json'
     if [[ "$?" == 0 ]]; then
         echo -n "Updating '$CONFIG' with new data..."
         verbose_cmd cray bos sessiontemplate create --name $CONFIG --file "$BOS_CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1

@@ -63,18 +63,21 @@ function power_reset {
 }
 
 function power_action {
-    local ARGS YES=0
-    local ACTION=$1
+    local ACTION="$1"
     shift
+    local ARGS OPTION TARGET_STRING
+    declare -a TARGET
+    local YES=0
 
     ARGS=" --continue true"
     OPTIND=1
     while getopts "yfr" OPTION ; do
         case "$OPTION" in
-            y) YES=1; ;;
-            f) ARGS+=" --force true"; shift ;;
+            y) YES=1 ;;
+            f) ARGS+=" --force true" ;;
             r) ARGS+=" --recursive true" ;;
-            \?) power_action_help $ACTION
+            :) echo "-$OPTARG must have an arument"; exit 1 ;;
+            \?) power_action_help "$ACTION" "$OPTION"
                 return 1
             ;;
         esac
@@ -86,19 +89,21 @@ function power_action {
         return 1
     fi
     convert2xname "$@"
-    local TARGET=( $RETURN )
+    TARGET=( $RETURN )
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
     if [[ "$YES" == 0 ]]; then
-        prompt_yn "Are you sure you want to power $ACTION these nodes?" || exit 1
+        prompt_yn "Are you sure you want to power $ACTION ${#TARGET[@]} nodes?" || exit 1
     fi
-    cray capmc xname_$ACTION create $ARGS --xnames "$xlist"
+
+    cray capmc xname_$ACTION create $ARGS --xnames "$TARGET_STRING"
     return $?
 }
 
 function power_action_help {
-    local ACTION=$1
-    echo "shasta power $ACTION:  Invalid option:  -$OPTARG"
+    local ACTION="$1"
+    local OPTION="$2"
+    echo "shasta power $ACTION:  Invalid option:  -$OPTION"
     echo "shasta power $ACTION <OPTIONS> [nodelist]"
     echo "OPTIONS:"
     echo -e "\t-y: yes to all options"

@@ -36,7 +36,7 @@ function node {
             shift
             node_enable "$@"
             ;;
-        power_up)
+        power_on)
             shift
             power_action up "$@"
             exit $?

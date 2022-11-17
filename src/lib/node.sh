@@ -28,6 +28,14 @@ function node {
             shift
             node_clear_errors "$@"
             ;;
+        disable)
+            shift
+            node_disable "$@"
+            ;;
+        enable)
+            shift
+            node_enable "$@"
+            ;;
         power_up)
             shift
             power_action up "$@"
@@ -238,7 +246,10 @@ function node_config {
 
 ## node_clear_errors
 function node_clear_errors {
-    cfs_clear_node_counters "$@"
+    convert2xname "$@"
+    local NODES=( $RETURN )
+
+    cfs_clear_node_counters "${NODES[@]}"
 }
 
 ## node_action
@@ -289,5 +300,32 @@ function node_action {
             die "Group '$GROUP' is not assigned a bos template!"
         fi
         bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "${NODES[@]}"
+    done
+}
+
+
+function node_enable {
+    local NODES=( $( nid2xname "$@") )
+    if [[ -z "$NODES" ]]; then
+        echo "USAGE: $0 node enable [nodelist]"
+        exit 1
+    fi
+
+    for node in "${NODES[@]}"; do
+        cray hsm state components enabled update --enabled=true $node
+    done
+}
+
+
+function node_disable {
+    local NODES=( $( nid2xname "$@") )
+
+    if [[ -z "$NODES" ]]; then
+        echo "USAGE: $0 node disable [nodelist]"
+        exit 1
+    fi
+
+    for node in "${NODES[@]}"; do
+        cray hsm state components enabled update --enabled=false $node
     done
 }

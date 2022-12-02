@@ -45,7 +45,30 @@ function power_status {
     local TARGET=( $RETURN )
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
-    cray capmc get_xname_status create --xnames "$TARGET_STRING"
+    local OUTPUT=$(cray capmc get_xname_status create --xnames "$TARGET_STRING" --format json)
+    local ON=$(echo "$OUTPUT" | jq -r '.on[]' 2> /dev/null)
+    local OFF=$(echo "$OUTPUT" | jq -r '.off[]' 2> /dev/null)
+    local UNKNOWN=$(echo "$OUTPUT" | jq -r '.undefined[]' 2> /dev/null)
+    local ERROR=$(echo "$OUTPUT" | jq -r '.err_msg' 2> /dev/null)
+
+    if [[ -n "$ON" ]]; then
+       echo -n "on: "
+       nodeset -f "$ON"
+       echo
+    fi
+    if [[ -n "$OFF" ]]; then
+       echo -n "off: "
+       nodeset -f "$OFF"
+       echo
+    fi
+    if [[ -n "$UNKNOWN" ]]; then
+       echo -n "unk: "
+       nodeset -f "$UNKNOWN"
+       echo
+    fi
+    if [[ -n "$ERROR" ]]; then
+       echo "ERROR: $ERROR"
+    fi
 }
 
 function power_reset {
@@ -96,7 +119,7 @@ function power_action {
         prompt_yn "Are you sure you want to power $ACTION ${#TARGET[@]} nodes?" || exit 1
     fi
 
-    cray capmc xname_$ACTION create $ARGS --xnames "$TARGET_STRING"
+    cray capmc xname_$ACTION create $ARGS --xnames "$TARGET_STRING" --format json
     return $?
 }
 

@@ -191,7 +191,7 @@ function node_status {
         CFS_NODE_ENABLED[$XNAME]="$ENABLED"
         CFS_NODE_STATE[$XNAME]="$STATE"
     done
-    printf "%20s %13s %11s %13s %13s %20s\n" "NODE" "HSM_ENABLED" "HSM_STATE" "CFS_ENABLED" "CFS_STATE" "GROUPS"
+    printf "${COLOR_BOLD}%20s %13s %11s %13s %13s %20s${COLOR_RESET}\n" "NODE" "HSM_ENABLED" "HSM_STATE" "CFS_ENABLED" "CFS_STATE" "GROUPS"
     for NODE in "${NODES[@]}"; do
         HSM_ENABLED="${HSM_NODE_ENABLED[$NODE]}"
         HSM_STATE="${HSM_NODE_STATE[$NODE]}"

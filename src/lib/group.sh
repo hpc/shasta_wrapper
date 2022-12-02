@@ -105,10 +105,24 @@ function group_list {
 function group_action {
     local ACTION="$1"
     shift
+    local ARGS HELP
+    ARGS=""
+    OPTIND=1
+    while getopts "yfr" OPTION ; do
+        case "$OPTION" in
+            y) ARGS+=" -y" ;;
+            f) [[ "$ACTION" == "power_off" ]] && ARGS+=" -f" ;;
+            :) echo "-$OPTARG must have an arument"; exit 1 ;;
+            \?) HELP=1
+                return 1
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
     local GROUP_LIST=( "$@" )
     local NODES GROUP
-    if [[ -z "${GROUP_LIST[@]}" ]]; then
-        echo "USAGE: $0 group $ACTION [group]" 1>&2
+    if [[ -z "${GROUP_LIST[@]}" || -n "$HELP" ]]; then
+        echo "USAGE: $0 group $ACTION <options> [group]" 1>&2
         exit 1
     fi
     refresh_ansible_groups
@@ -125,15 +139,15 @@ function group_action {
         elif [[ "$ACTION" == "clear_errors" ]]; then
             node_clear_errors $NODES
         elif [[ "$ACTION" == "power_on" ]]; then
-            power_action on $NODES
+            power_action on $ARGS $NODES
         elif [[ "$ACTION" == "power_off" ]]; then
-            power_action off $NODES
+            power_action off $ARGS $NODES
         elif [[ "$ACTION" == "power_reset" ]]; then
-            power_reset $NODES
+            power_reset $ARGS $NODES
         elif [[ "$ACTION" == "power_status" ]]; then
             power_status $NODES
         else
-            node_action "$ACTION" $NODES
+            node_action $ARGS "$ACTION" $NODES
         fi
     done
 }

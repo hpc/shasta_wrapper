@@ -73,6 +73,25 @@ function prompt {
     return $ANS
 }
 
+
+## wait_for_background_tasks
+# Wait for all background tasks to complete
+function wait_for_background_tasks {
+    local MESSAGE="$1"
+    local TOTAL="$2"
+    local COUNT JOBS
+
+    i=0
+    JOBS=99
+    while [[ "$JOBS" -gt "0" ]]; do
+        JOBS=$(jobs -r | wc -l)
+        ((COUNT=$TOTAL - $JOBS))
+        echo -en "\r$MESSAGE: $COUNT/$TOTAL"
+        sleep 2
+    done
+    echo
+}
+
 ## cmd_wait
 # Wait for the given command to return 0
 function cmd_wait {
@@ -210,6 +229,26 @@ function rest_api_delete {
     local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
     echo "$OUTPUT"
     echo $HTTP_CODE | grep -Eq '200|204'
+    return $?
+}
+
+## rest_api_patch
+# Send a query request to the api server
+function rest_api_patch {
+    local API="$1"
+    local DATA="$2"
+    local RAW=$(curl -w 'http_code: %{http_code}\n' \
+      -s -k \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -X PATCH \
+      -d "$DATA" \
+      -H "Content-Type: application/json" \
+      "https://api-gw-service-nmn.local/apis/$API"
+    )
+    local OUTPUT=$(echo "$RAW" | head -n -1)
+    local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    echo "$OUTPUT"
+    echo $HTTP_CODE | grep -q 200
     return $?
 }
 

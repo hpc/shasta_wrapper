@@ -251,23 +251,26 @@ function cfs_clear_node_counters {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        curl -s -k -i \
-        -X PATCH -d '{ "enabled": true, "errorCount": 0 }' \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${TOKEN}" \
-        "https://api-gw-service-nmn.local/apis/cfs/v2/components/$NODE" > /dev/null 2>&1 &
+        rest_api_patch "cfs/v2/components/$NODE" '{ "errorCount": 0 }' > /dev/null 2>&1 &
     done
 
-    i=0
-    JOBS=99
-    while [[ "$JOBS" -gt "0" ]]; do
-        JOBS=$(jobs -r | wc -l)
-        COUNT="${#NODES[@]}"
-        ((i=$COUNT - $JOBS))
-        echo -en "\rUpdating node state: $i/${#NODES[@]}"
-        sleep 2
+    wait_for_background_tasks "Updating node CFS state" "${#NODES[@]}"
+}
+
+## cfs_disable_nodes
+# Clear the error counters on the given node and ensure it's enabled
+function cfs_enable_nodes {
+    local STATE="$1"
+    shift
+    local NODES=( "$@" )
+    local NODE i COUNT JOBS
+
+    disown -a
+    for NODE in "${NODES[@]}"; do
+        rest_api_patch "cfs/v2/components/$NODE" "{ \"enabled\": $STATE }" > /dev/null 2>&1 &
     done
-    echo
+
+    wait_for_background_tasks "Updating node CFS state" "${#NODES[@]}"
 }
 
 ## cfs_clear_node_state
@@ -278,22 +281,10 @@ function cfs_clear_node_state {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        curl -s -k -i \
-        -X PATCH -d '{ "state": [], "enabled": true, "errorCount": 0 }' \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${TOKEN}" \
-        "https://api-gw-service-nmn.local/apis/cfs/v2/components/$NODE" > /dev/null 2>&1 &
+        rest_api_patch "cfs/v2/components/$NODE" '{ "state": [], "errorCount": 0 }' > /dev/null 2>&1 &
     done
 
-    i=0
-    JOBS=99
-    while [[ "$JOBS" -gt "0" ]]; do
-        JOBS=$(jobs -r | wc -l)
-        COUNT="${#NODES[@]}"
-        ((i=$COUNT - $JOBS))
-        echo -en "\rResetting node cfs state: $i/${#NODES[@]}"
-        sleep 2
-    done
+    wait_for_background_tasks "Resetting node CFS state" "${#NODES[@]}"
     echo
     echo "All nodes have had their cfs state reset. This should cause new cfs jobs to spawn shortly."
     echo "If you have had a lot of failed cfs runs you may need to restart the cfs batcher, as it backs off of launching when a lot have failed"
@@ -304,7 +295,8 @@ function cfs_clear_node_state {
 # Get a list of the nodes that cfs has not configured, and the group that node is a member of
 function cfs_unconfigured {
     refresh_ansible_groups
-    NODES=( $(rest_api_query "cfs/v2/components" | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
+    #local NODES
+    NODES=( $(rest_api_query "cfs/v2/components" | jq '.[] | select(.configurationStatus != "configured")' | jq '. | select(.enabled == true)'  | jq '.id' | sed 's/"//g') )
 
     echo -e "${COLOR_BOLD}XNAME\t\tGROUP$COLOR_RESET"
     for node in "${NODES[@]}"; do

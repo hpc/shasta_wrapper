@@ -76,6 +76,10 @@ function node {
             shift
             node_describe "$@"
             ;;
+        sta*)
+            shift
+            node_status
+            ;;
         shutdown)
             shift
             node_action shutdown "$@"
@@ -101,6 +105,8 @@ function node_help {
     echo -e "\tconfig [nodes] : Configures the given nodes with the given group's default cfs config."
     echo -e "\tclear_errors [nodes] : Resets the node error counters to 0."
     echo -e "\tdescribe : (same as show)"
+    echo -e "\tdisable [node] : Disable the node for hsm and cfs. Stops the node from being booted by bos, and cfs from running on it"
+    echo -e "\tenable [node] : Enable the node for hsm and cfs. Allows the node from being booted by bos, and cfs to running on it"
     echo -e "\tlist : list all available node groups"
     echo -e "\tpower_on <options> [nodes]: Power on given nodes"
     echo -e "\tpower_off <options> [nodes]: Power off given nodes"
@@ -109,6 +115,7 @@ function node_help {
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
     echo -e "\tresetdb : Clears the current database on what nodes are available and recomputes it. Usefull afer adding or removing nodes from a system(ie adding a cabinet)"
     echo -e "\tshow [node] : show details on a specific node group"
+    echo -e "\tstatus : Show general hsm and cfs state of all nodes (slimmed down and faster sat status)"
     echo -e "\tshutdown [nodes] : shutdown all nodes in the group"
     echo -e "\tunconf : List all unconfigured nodes"
 
@@ -165,6 +172,37 @@ function node_reset_db {
     echo "Node database has been refreshed"
 }
 
+function node_status {
+    hsm_refresh_node_state
+    refresh_ansible_groups
+    local HSM_ENABLED HSM_STATE CFS_ENABLED CFS_STATE GROUP CFS_NODE_DATA
+
+    local NODES=( "${!NODE2GROUP[@]}" )
+
+    declare -A CFS_NODE_ENABLED CFS_NODE_STATE
+    IFS=$'\n'
+    CFS_NODE_DATA=( $(rest_api_query "cfs/v2/components" | jq -r '.[] | "\(.id) \(.enabled) \(.configurationStatus)"' ) )
+    IFS=$' \t\n'
+    for LINE in "${CFS_NODE_DATA[@]}"; do
+        SPLIT=( $LINE )
+        XNAME="${SPLIT[0]}"
+        ENABLED="${SPLIT[1]}"
+        STATE="${SPLIT[2]}"
+        CFS_NODE_ENABLED[$XNAME]="$ENABLED"
+        CFS_NODE_STATE[$XNAME]="$STATE"
+    done
+    printf "%20s %13s %11s %13s %13s %20s\n" "NODE" "HSM_ENABLED" "HSM_STATE" "CFS_ENABLED" "CFS_STATE" "GROUPS"
+    for NODE in "${NODES[@]}"; do
+        HSM_ENABLED="${HSM_NODE_ENABLED[$NODE]}"
+        HSM_STATE="${HSM_NODE_STATE[$NODE]}"
+        CFS_ENABLED="${CFS_NODE_ENABLED[$NODE]}"
+        CFS_STATE="${CFS_NODE_STATE[$NODE]}"
+        GROUP="${NODE2GROUP[$NODE]}"
+
+        printf "%20s %13s %11s %13s %13s %20s\n" "$NODE" "$HSM_ENABLED" "$HSM_STATE" "$CFS_ENABLED" "$CFS_STATE" "$GROUP"
+    done | sort
+}
+
 ## node_describe
 # Show information on a given node
 function node_describe {
@@ -177,11 +215,13 @@ function node_describe {
         exit 1
     fi
 
+    hsm_refresh_node_state
     refresh_ansible_groups
     bos_get_default_node_group "$NODE"
     GROUP="$RETURN"
     image_defaults
     cluster_defaults_config
+    local HSM_NODE_STATE=$(echo "$HSM_STATE" | jq )
     echo "xname: ${CONVERT2XNAME[$NODE]}"
     echo "nid: ${CONVERT2FULLNID[$NODE]}"
     echo "nmn: ${CONVERT2NMN[$NODE]}"
@@ -202,7 +242,8 @@ function node_describe {
          echo "image_name:          $IMAGE_NAME"
          echo "image_id:            $IMAGE_ID"
          echo "config:              $CONFIG"
-         echo "groups:               $GROUP"
+         echo "groups:              $GROUP"
+         echo "hsm_enabled          "
     elif [[ -n "${CONFIG_DEFAULT[$GROUP]}" ]]; then
          echo "[$NODE]"
          echo "config:              ${CONFIG_DEFAULT[$GROUP]}"
@@ -210,6 +251,9 @@ function node_describe {
     else
         die "'$NODE' is not a valid node."
     fi
+    echo
+    echo "# HSM"
+    hsm_node_describe "$NODE" | jq -r 'to_entries[] | "\(.key)=\(.value)"'
     echo
     echo "# CFS"
     RAW_CFS=$(rest_api_query "cfs/v2/components/$NODE")
@@ -311,9 +355,8 @@ function node_enable {
         exit 1
     fi
 
-    for node in "${NODES[@]}"; do
-        cray hsm state components enabled update --enabled=true $node
-    done
+    hsm_enable_nodes true "${NODES[@]}"
+    cfs_enable_nodes true "${NODES[@]}"
 }
 
 
@@ -325,7 +368,6 @@ function node_disable {
         exit 1
     fi
 
-    for node in "${NODES[@]}"; do
-        cray hsm state components enabled update --enabled=false $node
-    done
+    hsm_enable_nodes false "${NODES[@]}"
+    cfs_enable_nodes false "${NODES[@]}"
 }

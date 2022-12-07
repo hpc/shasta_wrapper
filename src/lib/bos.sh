@@ -271,12 +271,13 @@ function bos_action {
         TARGET=( "$@" )
     elif [[ -n "$@" ]]; then
         convert2xname "$@"
+
+        TARGET=( $RETURN )
     else
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
 
-    local TARGET=( $RETURN )
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')

@@ -31,7 +31,7 @@ function hsm_refresh_node_state {
 function hsm_node_describe {
     NODE="$1"
 
-    rest_api_query smd/hsm/v2/State/Components | jq '.[][] | select(.ID == "x1007c7s7b0n0")'
+    rest_api_query smd/hsm/v2/State/Components | jq ".[][] | select(.ID == \"$NODE\")"
 }
 
 ## hsm_enable_nodes

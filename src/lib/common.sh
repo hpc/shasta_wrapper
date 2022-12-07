@@ -212,7 +212,7 @@ function refresh_node_conversions_data {
 # Send a query request to the api server
 function rest_api_query {
     local API="$1"
-    local RAW=$(curl -w 'http_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    local RAW=$(curl -w '\nhttp_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
     local OUTPUT=$(echo "$RAW" | head -n -1)
     local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
     echo "$OUTPUT"
@@ -224,7 +224,7 @@ function rest_api_query {
 # Send a delete request to the api server
 function rest_api_delete {
     local API="$1"
-    local RAW=$(curl -X DELETE -w 'http_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    local RAW=$(curl -X DELETE -w '\nhttp_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
     local OUTPUT=$(echo "$RAW" | head -n -1)
     local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
     echo "$OUTPUT"
@@ -237,7 +237,7 @@ function rest_api_delete {
 function rest_api_patch {
     local API="$1"
     local DATA="$2"
-    local RAW=$(curl -w 'http_code: %{http_code}\n' \
+    local RAW=$(curl -w '\nhttp_code: %{http_code}\n' \
       -s -k \
       -H "Authorization: Bearer ${TOKEN}" \
       -X PATCH \

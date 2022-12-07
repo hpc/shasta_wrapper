@@ -126,7 +126,7 @@ function group_action {
         exit 1
     fi
     refresh_ansible_groups
-
+    NODES_CONVERTED=1
     for GROUP in "${GROUP_LIST[@]}"; do
         if [[ -z "${GROUP2NODES[$GROUP]}" ]]; then
             die "Group '$GROUP' is not a valid group" 1>&2

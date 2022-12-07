@@ -300,6 +300,7 @@ function node_clear_errors {
 # Perform an action against a list of nodes. THis figures out the correct bos template for the node and send that to bos_action with the node list.
 function node_action {
     local ACTION="$1"
+    local NODES GROUP TMP
     shift
 
     OPTIND=1
@@ -315,9 +316,12 @@ function node_action {
         echo "USAGE: $0 node $ACTION [xnames]" 1>&2
         exit 1
     fi
-    convert2xname "$@"
-    local NODES=( $RETURN )
-    local GROUP TMP
+    if [[ -n "$NODES_CONVERTED" ]]; then
+        NODES=( "$@" )
+    else
+        convert2xname "$@"
+        NODES=( $RETURN )
+    fi
     refresh_ansible_groups
     cluster_defaults_config
     declare -A ACTION_GROUPS
@@ -343,6 +347,7 @@ function node_action {
         if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi
+        NODES_CONVERTED=1
         bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "${NODES[@]}"
     done
 }

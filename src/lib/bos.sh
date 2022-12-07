@@ -266,7 +266,10 @@ function bos_action {
     shift
     local TEMPLATE="$1"
     shift
-    if [[ "$@" ]]; then
+    local TARGET=(  )
+    if [[ -n "$NODES_CONVERTED" ]]; then
+        TARGET=( "$@" )
+    elif [[ -n "$@" ]]; then
         convert2xname "$@"
     else
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2

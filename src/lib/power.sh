@@ -41,8 +41,14 @@ function power_help {
 }
 
 function power_status {
-    convert2xname "$@"
-    local TARGET=( $RETURN )
+    local TARGET=( )
+    if [[ -n "$NODES_CONVERTED" ]]; then
+        TARGET=( "$@" )
+    else
+        echo 'test'
+        convert2xname "$@"
+        TARGET=( $RETURN )
+    fi
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
     local OUTPUT=$(cray capmc get_xname_status create --xnames "$TARGET_STRING" --format json)
@@ -111,8 +117,13 @@ function power_action {
         power_action_help $ACTION
         return 1
     fi
-    convert2xname "$@"
-    TARGET=( $RETURN )
+    if [[ -n "$NODES_CONVERTED" ]]; then
+        TARGET=( "$@" )
+    else
+        echo 'test'
+        convert2xname "$@"
+        TARGET=( $RETURN )
+    fi
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
     if [[ "$YES" == 0 ]]; then

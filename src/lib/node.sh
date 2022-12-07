@@ -221,7 +221,6 @@ function node_describe {
     GROUP="$RETURN"
     image_defaults
     cluster_defaults_config
-    local HSM_NODE_STATE=$(echo "$HSM_STATE" | jq )
     echo "xname: ${CONVERT2XNAME[$NODE]}"
     echo "nid: ${CONVERT2FULLNID[$NODE]}"
     echo "nmn: ${CONVERT2NMN[$NODE]}"

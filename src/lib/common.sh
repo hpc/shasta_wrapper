@@ -255,10 +255,11 @@ function rest_api_patch {
 ## get_node_conversions
 # Setup node conversions for all different node names and types (ie xname to nid) if it hasn't been done already.
 function get_node_conversions {
+    hsm_get_node_state
     if [[ ! -f "$NODE_CONVERSION_FILE" ]]; then
         refresh_sat_data
     fi
-    if [[ -z "${!CONVERT2XNAME[@]}" ]]; then
+    if [[ -z "${!CONVERT2FULLNID[@]}" ]]; then
         source "$NODE_CONVERSION_FILE"
     fi
 }
@@ -266,23 +267,29 @@ function get_node_conversions {
 ## refresh_sat_data
 # Pull down all the data from sat and use it to build a table of all conversion information (is nid to xname)
 function refresh_sat_data {
-    local XNAME NID FULLNID NMN NODES
-    local SAT_FILE=/usr/share/shasta_wrapper/sat.out
-
-    sat status --no-headings --no-borders --fields xname,nid | awk '{print $1 " " $2}' > "$SAT_FILE"
-
-    IFS=$'\n'
-    NODES=( $(cat "$SAT_FILE") )
-    IFS=$' \t\n'
+    local XNAME NID FULLNID NMN NODES ADD_ZEROS I
+    hsm_get_node_state
 
     echo "#!/bin/bash" > "$NODE_CONVERSION_FILE"
 
-    for NODE in "${NODES[@]}"; do
-        LINES=( $NODE )
-        XNAME="${LINES[0]}"
-        NID="${LINES[1]}"
-        FULLNID=$(printf 'nid%06d' $NID)
+    for XNAME in "${!HSM_NODE_ENABLED[@]}"; do
+        NID="${CONVERT2NID[$XNAME]}"
+        if [[ -z "$NID" ]]; then
+            continue
+        fi
+        FULLNID="$NID"
+        if [[ "${#NID}" -lt 6 ]]; then
+            ADD_ZEROS=$(( 6 - "${#NID}" ))
+            I=0
+            while [[ "$I" -lt $ADD_ZEROS ]]; do
+                FULLNID="0$FULLNID"
+                (( I++ ))
+            done
+        fi
+        FULLNID="nid$FULLNID"
         NMN="$FULLNID-nmn"
+
+
 
         echo  >> "$NODE_CONVERSION_FILE"
         echo  >> "$NODE_CONVERSION_FILE"
@@ -303,6 +310,7 @@ function refresh_sat_data {
         echo "CONVERT2NMN[$NID]=$NMN" >> "$NODE_CONVERSION_FILE"
         echo "CONVERT2NMN[$NMN]=$NMN" >> "$NODE_CONVERSION_FILE"
     done
+    source "$NODE_CONVERSION_FILE"
 }
 
 ## add_node_name
@@ -321,6 +329,20 @@ function add_node_name {
     if [[  -z "$XNAME" ]]; then
         die "Error node '$NODE' is invalid!"
     fi
+
+    # If this is a real node (added recently for example) it will show up in the
+    # CONVERT2NID but not in the CONVERT2FULLNID. This is because we refresh hsm
+    # every query, but don't construct the fullnids as it's expensive. If this is
+    # the case, we need to force the recreation of the xnames.
+    if [[ -n "${CONVERT2NID[$NAME]}" && -z "${CONVERT2FULLNID[$NAME]}" ]]; then
+        refresh_sat_data
+        return
+    fi
+    if [[ -n "${CONVERT2NID[$XNAME]}" && -z "${CONVERT2FULLNID[$XNAME]}" ]]; then
+        refresh_sat_data
+        return
+    fi
+
 
     # Validate the xname looks valid
     if [[ -n "${CONVERT2NID[$NAME]}" ]]; then

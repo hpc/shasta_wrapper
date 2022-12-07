@@ -45,7 +45,6 @@ function power_status {
     if [[ -n "$NODES_CONVERTED" ]]; then
         TARGET=( "$@" )
     else
-        echo 'test'
         convert2xname "$@"
         TARGET=( $RETURN )
     fi
@@ -120,7 +119,6 @@ function power_action {
     if [[ -n "$NODES_CONVERTED" ]]; then
         TARGET=( "$@" )
     else
-        echo 'test'
         convert2xname "$@"
         TARGET=( $RETURN )
     fi

@@ -71,7 +71,7 @@ function fas_check_firmware {
 
 function fas_flash_firmware {
     local FAS_COMPONENT=$1
-    local FAS_FILE="$FAS_SCRIPTS_CHECK/${FAS_COMPONENT}.json"
+    local FAS_FILE="$FAS_SCRIPTS_FLASH/${FAS_COMPONENT}.json"
 
     if [[ ! -f "$FAS_FILE" ]]; then
         die "Error component '$FAS_COMPONENT' no flash action found!"
@@ -92,7 +92,7 @@ function fas_flash_firmware {
         exit 0
     fi
 
-    grep 'overrideDryrun' "$FAS_FILE" | grep -q 'true'
+    grep -i 'overrideDryrun' "$FAS_FILE" | grep -iq 'true'
     if [[ $? -ne 0 ]]; then
         echo "This is not a flash run. aborting"
         exit 1

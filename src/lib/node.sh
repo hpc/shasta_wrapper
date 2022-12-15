@@ -41,7 +41,17 @@ function node {
             power_action up "$@"
             exit $?
             ;;
+        poweron)
+            shift
+            power_action up "$@"
+            exit $?
+            ;;
         power_off)
+            shift
+            power_action off "$@"
+            exit $?
+            ;;
+        poweroff)
             shift
             power_action off "$@"
             exit $?

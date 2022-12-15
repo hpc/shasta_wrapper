@@ -35,7 +35,15 @@ function group {
             shift
             group_action power_on "$@"
             ;;
+        poweron)
+            shift
+            group_action power_on "$@"
+            ;;
         power_off)
+            shift
+            group_action power_off "$@"
+            ;;
+        poweroff)
             shift
             group_action power_off "$@"
             ;;
@@ -79,6 +87,10 @@ function group_help {
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
+    echo -e "\tpower_off <options> [group]: Powers the given nodes off"
+    echo -e "\tpower_on <options> [group]: Powers the given nodes on"
+    echo -e "\tpower_reset [group]: Powers the given nodes off then on again"
+    echo -e "\tpower_status <options> [group]: Provides the power state of the given group of nodes"
     echo -e "\treboot [group list] : Reboots the given group into it's default bos template."
     echo -e "\tshow : show details on a specific node group"
     echo -e "\tsummary <-v> : show all groups and their general configs"

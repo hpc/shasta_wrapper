@@ -301,8 +301,20 @@ function node_config {
 function node_clear_errors {
     convert2xname "$@"
     local NODES=( $RETURN )
+    local NODES_STRIPPED=( )
+    hsm_get_node_state
 
-    cfs_clear_node_counters "${NODES[@]}"
+    for node in "${NODES[@]}"; do
+        if [[ "${HSM_NODE_ENABLED[$node]}" != "true" ]]; then
+            continue
+        fi
+        if [[ "${HSM_NODE_STATE[$node]}" != "Ready" ]]; then
+            continue
+        fi
+        NODES_STRIPPED+=( $node )
+    done
+
+    cfs_clear_node_counters "${NODES_STRIPPED[@]}"
 }
 
 ## node_action

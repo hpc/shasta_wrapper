@@ -251,7 +251,7 @@ function cfs_clear_node_counters {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        rest_api_patch "cfs/v2/components/$NODE" '{ "errorCount": 0 }' > /dev/null 2>&1 &
+        rest_api_patch "cfs/v2/components/$NODE" '{ "errorCount": 0, "enabled": true }' > /dev/null 2>&1 &
     done
 
     wait_for_background_tasks "Updating node CFS state" "${#NODES[@]}"

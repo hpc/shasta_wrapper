@@ -60,7 +60,7 @@ function cfs_help {
     echo    "USAGE: $0 cfs [action]"
     echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
-    echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
+    echo -e "\tapply [cfs] [node] : Runs the given cfs against its confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
     echo -e "\tedit [cfs config] : Edit a given cfs."
     echo -e "\tdelete [cfs config] : delete the cfs"
@@ -280,6 +280,12 @@ function cfs_unconfigured {
 ## cfs_log_job
 # Get the logs from the given cfs job id
 function cfs_log_job {
+    TS=''
+    if [[ "$1" == '-t' ]]; then
+        shift
+        TS='--timestamps'    
+    fi
+
     local CFS="$1"
     local POD
 
@@ -341,8 +347,8 @@ function cfs_logwatch {
         echo "#################################################"
         echo "### init container: $cont"
         echo "#################################################"
-        cmd_wait_output "Cloning successful" kubectl logs -n services "$POD_ID" -c "$cont" 2>&1
-        verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
+        cmd_wait_output "Cloning successful" kubectl logs $TS -n services "$POD_ID" -c "$cont" 2>&1
+        verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
     done
 
     # container logs
@@ -353,8 +359,8 @@ function cfs_logwatch {
     echo "#################################################"
     echo "### container: inventory"
     echo "#################################################"
-    cmd_wait kubectl logs -n services "$POD_ID" -c "inventory" 2>&1
-    verbose_cmd kubectl logs -n services -f "$POD_ID" -c "inventory"
+    cmd_wait kubectl logs $TS -n services "$POD_ID" -c "inventory" 2>&1
+    verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c "inventory"
     for cont in "${CONTAIN[@]}"; do
         if [[ "$cont" != "inventory" ]]; then
             echo
@@ -362,7 +368,7 @@ function cfs_logwatch {
             echo "#################################################"
             echo "### container: $cont"
             echo "#################################################"
-            verbose_cmd kubectl logs -n services -f "$POD_ID" -c $cont 2>&1
+            verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
 
         fi
     done

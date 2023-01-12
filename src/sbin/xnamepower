@@ -47,19 +47,16 @@ while [ -n "$1" ]; do
   x*)
     xlist="$1"
     ;;
-  nid*)
-    xlist=`nid2xname $1`
-    ;;
   on|off|reset|status)
     op="$1"
     ;;
   *)
-    usage
-    exit 1
+    xlist=`nid2xname $1 | xargs | sed 's/ /,/g'`
     ;;
   esac
   shift
 done
+continuearg="--continue true"
 
 [ -z "$xlist" ] && { usage; exit 1; }
 
@@ -67,17 +64,17 @@ ret1=0
 ret2=0
 case "$op" in
 on)
-  prompt $xlist on && cray capmc xname_on create $recursearg --xnames "$xlist"
+  prompt $xlist on && cray capmc xname_on create $recursearg $continuearg --xnames "$xlist"
   ret1=$?
   ;;
 off)
-  prompt $xlist off && cray capmc xname_off create $recursearg $forcearg --xnames "$xlist"
+  prompt $xlist off && cray capmc xname_off create $recursearg $continuearg $forcearg --xnames "$xlist"
   ret1=$?
   ;;
 reset)
   prompt $xlist reset
   if [ $? -eq 0 ]; then
-    cray capmc xname_off create $recursearg $forcearg --xnames "$xlist"
+    cray capmc xname_off create $recursearg $forcearg $continuearg --xnames "$xlist"
     ret1=$?
     echo -n "Waiting 10 seconds ..."
     sleep 10

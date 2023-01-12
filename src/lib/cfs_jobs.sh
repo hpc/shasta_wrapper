@@ -51,10 +51,10 @@ function refresh_cfs_jobs_raw {
     if [[ -n "$CFS_JOBS_RAW" && "$1" != "--force" ]]; then
         return
     fi
-    CFS_JOBS_RAW=$(cray cfs sessions list --format json)
+    CFS_JOBS_RAW=$(rest_api_query "cfs/v2/sessions")
 
-    if [[ -z "#CFS_JOBS_RAW" ]]; then
-        die "failed to gedt cfs data"
+    if [[ -z "${CFS_JOBS_RAW[@]}" ]]; then
+        die "failed to get cfs data"
     fi
 }
 
@@ -66,14 +66,22 @@ function cfs_job_list {
     if [[ "$1" == '-l' ]]; then
         printf "${COLOR_BOLD}%19s   %44s   %20s   %8s %s$COLOR_RESET\n" DATE ID CONFIG STATE NODES
         printf "%19s   %44s   %20s   %8s %s\n" $(echo "$CFS_JOBS_RAW" |\
-            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)   \(.ansible.limit)"' |\
+            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)/\(.status.session.succeeded)   \(.ansible.limit)"' |\
             sed 's/"//g' |\
+            sed 's|running/none|running|g' |\
+            sed 's|pending/none|pending|g' |\
+            sed 's|complete/false|fail|g' |\
+            sed 's|complete/true|success|g' |\
             sort)
     elif [[ -z "$1" ]]; then
         printf "${COLOR_BOLD}%19s   %44s   %20s   %8s$COLOR_RESET\n" DATE ID CONFIG STATE
         printf "%19s   %44s   %20s   %8s\n" $(echo "$CFS_JOBS_RAW" |\
-            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)"' |\
+            jq '.[] | "\(.status.session.startTime)   \(.name)   \(.configuration.name)   \(.status.session.status)/\(.status.session.succeeded)"' |\
             sed 's/"//g' |\
+            sed 's|running/none|running|g' |\
+            sed 's|pending/none|pending|g' |\
+            sed 's|complete/false|failed|g' |\
+            sed 's|complete/true|success|g' |\
             sort)
     else
         echo "Usage: $0 cfs job list <options>"
@@ -114,11 +122,9 @@ function cfs_job_delete {
     if [[ "${JOBS[0]}" == "--all" ]]; then
         refresh_cfs_jobs_raw
         JOBS=( $(echo "$CFS_JOBS_RAW" | jq '.[].name' | sed 's/"//g') )
-        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?(WARNING this will also delete all bos jobs!)" || exit 0
+        prompt_yn "Would you really like to delete all ${#JOBS[@]} jobs?" || exit 0
 
         echo
-        echo "# BOS jobs"
-        bos_job_delete --all || exit 0
     elif [[ "${JOBS[0]}" == "--complete" ]]; then
         refresh_cfs_jobs_raw
         JOBS=( $(echo "$CFS_JOBS_RAW" | jq '.[] | select(.status.session.status == "complete")' | jq '.name' | sed 's/"//g') )
@@ -126,7 +132,10 @@ function cfs_job_delete {
     fi
 
     for job in "${JOBS[@]}"; do
-        verbose_cmd cray cfs sessions delete --format json $job
-        sleep 2
+        if [[ -z "$job" ]]; then
+            continue
+        fi
+        echo cray cfs sessions delete --format json $job
+        rest_api_delete "cfs/v2/sessions/$job"
     done
 }

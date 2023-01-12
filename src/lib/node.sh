@@ -22,7 +22,49 @@ function node {
             ;;
         con*)
             shift
-            node_action configure "$@"
+            node_config "$@"
+            ;;
+        clear_errors)
+            shift
+            node_clear_errors "$@"
+            ;;
+        disable)
+            shift
+            node_disable "$@"
+            ;;
+        enable)
+            shift
+            node_enable "$@"
+            ;;
+        power_on)
+            shift
+            power_action on "$@"
+            exit $?
+            ;;
+        poweron)
+            shift
+            power_action on "$@"
+            exit $?
+            ;;
+        power_off)
+            shift
+            power_action off "$@"
+            exit $?
+            ;;
+        poweroff)
+            shift
+            power_action off "$@"
+            exit $?
+            ;;
+        power_reset)
+            shift
+            power_reset "$@"
+            exit $?
+            ;;
+        power_status)
+            shift
+            power_status "$@"
+            exit $?
             ;;
         li*)
             shift
@@ -36,9 +78,17 @@ function node {
             shift
             node_action reboot "$@"
             ;;
+        resetdb)
+            shift
+            node_reset_db
+            ;;
         sho*)
             shift
             node_describe "$@"
+            ;;
+        sta*)
+            shift
+            node_status
             ;;
         shutdown)
             shift
@@ -61,13 +111,22 @@ function node_help {
     echo -e "\t2nid [nodes] : Convert given nodes to nid numbers."
     echo -e "\t2fullnid [nodes] : Convert given nodes to nidXXXXXX format."
     echo -e "\t2xname [nodes] : Convert given nodes to xname format."
-    echo -e "\tboot [nodes space seperated] : Boots the given nodes into the given group's default bos template."
-    echo -e "\tconfig [nodes space seperated] : Configures the given nodes with the given group's default cfs config."
+    echo -e "\tboot [nodes] : Boots the given nodes into the given group's default bos template."
+    echo -e "\tconfig [nodes] : Configures the given nodes with the given group's default cfs config."
+    echo -e "\tclear_errors [nodes] : Resets the node error counters to 0."
     echo -e "\tdescribe : (same as show)"
+    echo -e "\tdisable [node] : Disable the node for hsm and cfs. Stops the node from being booted by bos, and cfs from running on it"
+    echo -e "\tenable [node] : Enable the node for hsm and cfs. Allows the node from being booted by bos, and cfs to running on it"
     echo -e "\tlist : list all available node groups"
+    echo -e "\tpower_on <options> [nodes]: Power on given nodes"
+    echo -e "\tpower_off <options> [nodes]: Power off given nodes"
+    echo -e "\tpower_reset [nodes]: reset node power"
+    echo -e "\tpower_status [nodes]: Get node power status"
     echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
+    echo -e "\tresetdb : Clears the current database on what nodes are available and recomputes it. Usefull afer adding or removing nodes from a system(ie adding a cabinet)"
     echo -e "\tshow [node] : show details on a specific node group"
-    echo -e "\tshutdown [nodes space seperated] : shutdown all nodes in the group"
+    echo -e "\tstatus : Show general hsm and cfs state of all nodes (slimmed down and faster sat status)"
+    echo -e "\tshutdown [nodes] : shutdown all nodes in the group"
     echo -e "\tunconf : List all unconfigured nodes"
 
     exit 1
@@ -118,6 +177,42 @@ function node_list {
     done
 }
 
+function node_reset_db {
+    refresh_node_conversions_data
+    echo "Node database has been refreshed"
+}
+
+function node_status {
+    hsm_refresh_node_state
+    refresh_ansible_groups
+    local HSM_ENABLED HSM_STATE CFS_ENABLED CFS_STATE GROUP CFS_NODE_DATA
+
+    local NODES=( "${!NODE2GROUP[@]}" )
+
+    declare -A CFS_NODE_ENABLED CFS_NODE_STATE
+    IFS=$'\n'
+    CFS_NODE_DATA=( $(rest_api_query "cfs/v2/components" | jq -r '.[] | "\(.id) \(.enabled) \(.configurationStatus)"' ) )
+    IFS=$' \t\n'
+    for LINE in "${CFS_NODE_DATA[@]}"; do
+        SPLIT=( $LINE )
+        XNAME="${SPLIT[0]}"
+        ENABLED="${SPLIT[1]}"
+        STATE="${SPLIT[2]}"
+        CFS_NODE_ENABLED[$XNAME]="$ENABLED"
+        CFS_NODE_STATE[$XNAME]="$STATE"
+    done
+    printf "${COLOR_BOLD}%20s %13s %11s %13s %13s %20s${COLOR_RESET}\n" "NODE" "HSM_ENABLED" "HSM_STATE" "CFS_ENABLED" "CFS_STATE" "GROUPS"
+    for NODE in "${NODES[@]}"; do
+        HSM_ENABLED="${HSM_NODE_ENABLED[$NODE]}"
+        HSM_STATE="${HSM_NODE_STATE[$NODE]}"
+        CFS_ENABLED="${CFS_NODE_ENABLED[$NODE]}"
+        CFS_STATE="${CFS_NODE_STATE[$NODE]}"
+        GROUP="${NODE2GROUP[$NODE]}"
+
+        printf "%20s %13s %11s %13s %13s %20s\n" "$NODE" "$HSM_ENABLED" "$HSM_STATE" "$CFS_ENABLED" "$CFS_STATE" "$GROUP"
+    done | sort
+}
+
 ## node_describe
 # Show information on a given node
 function node_describe {
@@ -130,6 +225,7 @@ function node_describe {
         exit 1
     fi
 
+    hsm_refresh_node_state
     refresh_ansible_groups
     bos_get_default_node_group "$NODE"
     GROUP="$RETURN"
@@ -155,7 +251,8 @@ function node_describe {
          echo "image_name:          $IMAGE_NAME"
          echo "image_id:            $IMAGE_ID"
          echo "config:              $CONFIG"
-         echo "groups:               $GROUP"
+         echo "groups:              $GROUP"
+         echo "hsm_enabled          "
     elif [[ -n "${CONFIG_DEFAULT[$GROUP]}" ]]; then
          echo "[$NODE]"
          echo "config:              ${CONFIG_DEFAULT[$GROUP]}"
@@ -164,8 +261,11 @@ function node_describe {
         die "'$NODE' is not a valid node."
     fi
     echo
+    echo "# HSM"
+    hsm_node_describe "$NODE" | jq -r 'to_entries[] | "\(.key)=\(.value)"'
+    echo
     echo "# CFS"
-    RAW_CFS=$(cray cfs components describe "$NODE" --format json)
+    RAW_CFS=$(rest_api_query "cfs/v2/components/$NODE")
     echo -n "configurationStatus:  "
     echo "$RAW_CFS" | jq '.configurationStatus' | sed 's/"//g'
     echo -n "enabled:              "
@@ -176,11 +276,52 @@ function node_describe {
     echo "$RAW_CFS" | jq '.retryPolicy' | sed 's/"//g'
 
 }
+## node_config
+# Rerun cfs configurations on given nodes
+function node_config {
+    OPTIND=1
+    while getopts "y" OPTION ; do
+        case "$OPTION" in
+            y) ASSUME_YES=1;;
+            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    if [[ -z "$@" ]]; then
+        echo "USAGE: $0 node config [nodes]" 1>&2
+        exit 1
+    fi
+    convert2xname "$@"
+    local NODES=( $RETURN )
+    cfs_clear_node_state "${NODES[@]}"
+}
+
+## node_clear_errors
+function node_clear_errors {
+    convert2xname "$@"
+    local NODES=( $RETURN )
+    local NODES_STRIPPED=( )
+    hsm_get_node_state
+
+    for node in "${NODES[@]}"; do
+        if [[ "${HSM_NODE_ENABLED[$node]}" != "true" ]]; then
+            continue
+        fi
+        if [[ "${HSM_NODE_STATE[$node]}" != "Ready" ]]; then
+            continue
+        fi
+        NODES_STRIPPED+=( $node )
+    done
+
+    cfs_clear_node_counters "${NODES_STRIPPED[@]}"
+}
 
 ## node_action
 # Perform an action against a list of nodes. THis figures out the correct bos template for the node and send that to bos_action with the node list.
 function node_action {
     local ACTION="$1"
+    local NODES GROUP TMP
     shift
 
     OPTIND=1
@@ -196,9 +337,12 @@ function node_action {
         echo "USAGE: $0 node $ACTION [xnames]" 1>&2
         exit 1
     fi
-    convert2xname "$@"
-    local NODES=( $RETURN )
-    local GROUP TMP
+    if [[ -n "$NODES_CONVERTED" ]]; then
+        NODES=( "$@" )
+    else
+        convert2xname "$@"
+        NODES=( $RETURN )
+    fi
     refresh_ansible_groups
     cluster_defaults_config
     declare -A ACTION_GROUPS
@@ -224,6 +368,32 @@ function node_action {
         if [[ -z "${BOS_DEFAULT[$GROUP]}" ]]; then
             die "Group '$GROUP' is not assigned a bos template!"
         fi
+        NODES_CONVERTED=1
         bos_action "$ACTION" "${BOS_DEFAULT[$GROUP]}" "${NODES[@]}"
     done
+}
+
+
+function node_enable {
+    local NODES=( $( nid2xname "$@") )
+    if [[ -z "$NODES" ]]; then
+        echo "USAGE: $0 node enable [nodelist]"
+        exit 1
+    fi
+
+    hsm_enable_nodes true "${NODES[@]}"
+    cfs_enable_nodes true "${NODES[@]}"
+}
+
+
+function node_disable {
+    local NODES=( $( nid2xname "$@") )
+
+    if [[ -z "$NODES" ]]; then
+        echo "USAGE: $0 node disable [nodelist]"
+        exit 1
+    fi
+
+    hsm_enable_nodes false "${NODES[@]}"
+    cfs_enable_nodes false "${NODES[@]}"
 }

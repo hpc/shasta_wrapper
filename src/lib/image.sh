@@ -74,7 +74,7 @@ function refresh_images {
     echo "# cray ims images list --format json | jq '.[] | \"\\(.created)   \\(.id)   \\(.name)\"' | sed 's/\"//g' | sort"
 
     IFS=$'\n'
-    RAW=( $(cray ims images list --format json | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
+    RAW=( $(rest_api_query "ims/images" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
     IFS=$' \t\n'
 
     for image in "${RAW[@]}"; do
@@ -109,7 +109,11 @@ function image_list {
 ## image_describe
 # show inormation on the given image
 function image_describe {
-    verbose_cmd cray ims images describe --format json "$1"
+    local OUTPUT RET
+    OUTPUT=$(rest_api_query "ims/images/$1")
+    RET=$?
+    echo "$OUTPUT" | jq
+    return $RET
 }
 
 ## image_delete
@@ -120,7 +124,11 @@ function image_delete {
         exit 1
     fi
     for image in "$@"; do
-        verbose_cmd cray ims images delete --format json "$image" | grep -P '\S'
+        if [[ -z "$image" ]]; then
+            continue
+        fi
+        echo cray ims images delete --format json "$image" | grep -P '\S'
+        rest_api_delete "ims/images/$image"
     done
     echo "Cleaning up image artifacts..."
     image_clean_deleted_artifacts
@@ -183,7 +191,7 @@ function image_build {
         die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
     fi
 
-    cray cfs configurations describe --format json "$CONFIG_NAME" > /dev/null 2>&1
+    cfs_describe "$CONFIG_NAME" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         die "'$CONFIG_NAME' is not a valid configuration."
     fi
@@ -234,7 +242,7 @@ function image_map {
         echo "USAGE: $0 image map [bos template] [image id]" 1>&2
         exit 1
     fi
-    IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.id == \"$IMAGE_ID\")")
+    IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.id == \"$IMAGE_ID\")")
 
     IMAGE_ETAG=$(echo "$IMAGE_RAW" | jq '.link.etag' | sed 's/"//g')
     IMAGE_PATH=$(echo "$IMAGE_RAW" | jq '.link.path' | sed 's/"//g')
@@ -313,26 +321,26 @@ function image_build_bare {
 
     image_logwatch "$JOB_ID"
 
-    set +e
-    cmd_wait_output "success|error" cray ims jobs describe --format json $IMS_JOB_ID
+    cmd_wait_output "success|error" image_job_describe "$IMS_JOB_ID"
 
-    cray ims jobs describe --format json $IMS_JOB_ID | grep "status" | grep -q 'success'
+    image_job_describe "$IMS_JOB_ID" | grep "status" | grep -q 'success'
     if [[ "$?" -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
     fi
 
-    IMAGE_ID=$(cray ims jobs describe $IMS_JOB_ID  --format json | jq .resultant_image_id | sed 's/"//g' )
+    IMAGE_ID=$(image_job_describe "$IMS_JOB_ID" | jq .resultant_image_id | sed 's/"//g' )
     echo "  Grabbing image_id = '$IMAGE_ID' from output..."
 
-    verbose_cmd cray ims images describe --format json "$IMAGE_ID" > /dev/null 2>&1
+    set +e
+    verbose_cmd image_describe "$IMAGE_ID" > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error image build failed! See logs for details"
         die "[$GROUP_NAME] Error image build failed! See logs for details"
     fi
     echo "  Ok, image does appear to exist. Cleaning up the job..."
 
-    verbose_cmd cray ims jobs delete --format json $IMS_JOB_ID
+    verbose_cmd image_job_delete $IMS_JOB_ID
 
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID" 1>&2
     echo "[$GROUP_NAME] Bare image Created: $IMAGE_ID"
@@ -346,7 +354,7 @@ function image_logwatch {
     KUBE_JOB="$1"
 
     sleep 3
-    cmd_wait_output "READY" kubectl get pods -l job-name=$KUBE_JOB -n ims
+    cmd_wait_output "READY" kubectl get pods -l job-name=$KUBE_JOB -n ims 2>&1
     POD_ID=$(kubectl get pods -l job-name=$KUBE_JOB -n ims| tail -n 1 | awk '{print $1}')
 
     verbose_cmd kubectl describe job -n ims $JOB_ID | grep -q 'Pods Statuses:  0 Running / 1 Succeeded'
@@ -467,7 +475,7 @@ function image_configure {
 
     # Delete any existing cfs session that has the same 
     # name to ensure we don't screw things up
-    cray cfs sessions delete --format json "$SESSION_NAME" > /dev/null 2>&1
+    cfs_job_delete "$SESSION_NAME" > /dev/null 2>&1
 
     ## Launch the cfs configuration job. 
     # We try multiple times as sometimes cfs is in a bad state and won't 
@@ -498,14 +506,14 @@ function image_configure {
 
     ## Show the logs for the cfs configure job
     #
-    cmd_wait_output "job" cray cfs sessions describe --format json "$SESSION_NAME"
+    cmd_wait_output "job" cfs_job_describe "$SESSION_NAME"
 
-    JOB_ID=$(cray cfs sessions describe $SESSION_NAME --format json  | jq '.status.session.job' | sed 's/"//g')
+    JOB_ID=$(cfs_job_describe $SESSION_NAME  | jq '.status.session.job' | sed 's/"//g')
     cfs_log_job "$SESSION_NAME"
 
-    cmd_wait_output 'complete' cray cfs sessions describe --format json "$SESSION_NAME"
+    cmd_wait_output 'complete' cfs_job_describe "$SESSION_NAME"
 
-    cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.session.succeeded' | grep -q 'true'
+    cfs_job_describe "$SESSION_NAME" | jq '.status.session.succeeded' | grep -q 'true'
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] image configuation failed"
         die "[$GROUP_NAME] image configuation failed"
@@ -514,13 +522,13 @@ function image_configure {
     ## Validate that we got an image and set that as the RETURN so that if 
     # parent function wants it it can use it
 
-    NEW_IMAGE_ID=$(cray cfs sessions describe "$SESSION_NAME" --format json | jq '.status.artifacts[0].result_id' | sed 's/"//g')
+    NEW_IMAGE_ID=$(cfs_job_describe "$SESSION_NAME" | jq '.status.artifacts[0].result_id' | sed 's/"//g')
 
     if [[ -z "$NEW_IMAGE_ID" ]]; then
         echo "[$GROUP_NAME] Could not determine image id for configured image."
         die "[$GROUP_NAME] Could not determine image id for configured image."
     fi
-    verbose_cmd cray ims images describe --format json "$NEW_IMAGE_ID"
+    verbose_cmd image_describe "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
         echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
         die "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
@@ -543,4 +551,3 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images --format json "$artifact" | grep -P '\S'
     done
 }
-

@@ -83,7 +83,7 @@ function refresh_bos_raw {
     if [[ -n "$BOS_RAW" && "$1" != '--force' ]]; then
         return 0
     fi
-    BOS_RAW=$(cray bos sessiontemplate list --format json)
+    BOS_RAW=$(rest_api_query "bos/v1/sessiontemplate")
     if [[ -z "$BOS_RAW" ]]; then
        echo "Error retrieving bos data... Some information may be unavailable"
        return 1
@@ -92,7 +92,7 @@ function refresh_bos_raw {
 }
 
 ## bos_get_default_node_group
-# Get the group to use for the given node. This is done due to some ansible groups not having any defaults for booting, thus for this we are looking for what group to consider the node from the list of groups that have assigned default bos templates. 
+# Get the group to use for the given node. This is done due to some ansible groups not having any defaults for booting, thus for this we are looking for what group to consider the node from the list of groups that have assigned default bos templates.
 function bos_get_default_node_group {
     local NODE="$1"
     cluster_defaults_config
@@ -131,7 +131,7 @@ function bos_list {
         die "Error unable to get bos information"
     fi
 
-    # When a bos template is set as default for an ansible group, display that 
+    # When a bos template is set as default for an ansible group, display that
     # ansible group in bold in paratheses next to it
     BOS_TEMPLATES=( )
     for line in "${BOS_LINES[@]}"; do
@@ -153,7 +153,7 @@ function bos_describe {
         echo "USAGE: $0 bos describe [bos config]"
 	return 1
     fi
-    cray bos sessiontemplate describe --format json "$@"
+    rest_api_query "bos/v1/sessiontemplate/$1"
     return $?
 }
 
@@ -164,7 +164,7 @@ function bos_delete {
         echo "USAGE: $0 bos delete [bos config]"
 	return 1
     fi
-    cray bos sessiontemplate delete --format json "$@"
+    rest_api_delete "bos/v1/sessiontemplate/$1"
     return $?
 }
 
@@ -205,7 +205,7 @@ function bos_clone {
     tmpdir
     TMPFILE="$TMPDIR/bos_sessiontemplate.json"
 
-    bos_describe $SRC --format json > "$TMPFILE"
+    bos_describe $SRC > "$TMPFILE"
 
     cray bos sessiontemplate create --name $DEST --file "$TMPFILE" --format json
     set +e
@@ -219,10 +219,10 @@ function bos_update_template {
     local VALUE="$3"
 
     set -e
-    bos_describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    bos_describe "$TEMPLATE" > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     json_set_field "$BOS_CONFIG_DIR/$TEMPLATE.json" "$KEY" "$VALUE"
-    cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" --format json > /dev/null 2>&1
-    bos_describe "$TEMPLATE" --format json > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    cray bos sessiontemplate create --name $TEMPLATE --file "$BOS_CONFIG_DIR/$TEMPLATE.json" > /dev/null 2>&1
+    bos_describe "$TEMPLATE" > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     cat "$BOS_CONFIG_DIR/$TEMPLATE.json" | jq "$KEY" > /dev/null
     set +e
     return $?
@@ -240,7 +240,7 @@ function bos_edit {
     bos_exit_if_not_valid "$CONFIG"
 
     set -e
-    bos_describe $CONFIG --format json > "$BOS_CONFIG_DIR/$CONFIG.json"
+    bos_describe $CONFIG > "$BOS_CONFIG_DIR/$CONFIG.json"
 
     if [[ ! -s "$BOS_CONFIG_DIR/$CONFIG.json" ]]; then
         rm -f "$BOS_CONFIG_DIR/$CONFIG.json"
@@ -248,7 +248,7 @@ function bos_edit {
     fi
 
     set +e
-    edit_file "$BOS_CONFIG_DIR/$CONFIG.json"
+    edit_file "$BOS_CONFIG_DIR/$CONFIG.json" 'json'
     if [[ "$?" == 0 ]]; then
         echo -n "Updating '$CONFIG' with new data..."
         verbose_cmd cray bos sessiontemplate create --name $CONFIG --file "$BOS_CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
@@ -259,27 +259,31 @@ function bos_edit {
 }
 
 ## bos_action
-# Perform a given action with the given bos template against the given nodes. 
+# Perform a given action with the given bos template against the given nodes.
 # For example, reboot some nodes with the cos-sessiontemplate.
 function bos_action {
     local ACTION="$1"
     shift
     local TEMPLATE="$1"
     shift
-    if [[ "$@" ]]; then
+    local TARGET=(  )
+    if [[ -n "$NODES_CONVERTED" ]]; then
+        TARGET=( "$@" )
+    elif [[ -n "$@" ]]; then
         convert2xname "$@"
+
+        TARGET=( $RETURN )
     else
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
-        
-    local TARGET=( $RETURN )
+
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
 
     cluster_defaults_config
-    cfs_clear_node_counters "${TARGET[@]}"
+    #cfs_clear_node_counters "${TARGET[@]}"
 
     bos_exit_if_not_valid "$TEMPLATE"
     KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')

@@ -70,7 +70,7 @@ function image_defaults {
             echo "Warning: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
         fi
 
-        IMAGE_RAW=$(cray ims images list --format json | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
+        IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
         if [[ -z "$IMAGE_RAW" ]]; then
             echo "Warning: Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
             CUR_IMAGE_NAME[$group]="Invalid"
@@ -89,8 +89,8 @@ function cluster_validate {
     cluster_defaults_config
 
     local CONFIG_RAW CONFIG RECIPE_RAW RECIPE
-    CONFIG_RAW=$(cray cfs configurations list --format json)
-    RECIPE_RAW=$(cray ims recipes list --format json)
+    CONFIG_RAW=$(rest_api_query "cfs/v2/configurations")
+    RECIPE_RAW=$(rest_api_query "ims/recipes")
     for group in "${!BOS_DEFAULT[@]}"; do
         echo -n "Checking $group..."
         # Validate recipe used exists
@@ -108,4 +108,3 @@ function cluster_validate {
         echo "ok"
     done
 }
-

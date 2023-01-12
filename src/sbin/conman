@@ -1,28 +1,13 @@
 #!/bin/bash
 
-case "$1" in
-nid*)
-  xname=$(nid2xname $1)
-  ;;
-x*)
-  xname=$1
-  ;;
-*)
+xname=$(nid2xname $1)
+if [[ -z "$xname" ]]; then
   echo "Do not understand $1" 1>&2
   exit 1
-  ;;
-esac
-
-conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-console-node -o jsonpath='{.items[].metadata.name}' 2> /dev/null)
-CONTAINER=cray-console-node
-if [[ -z "$conpod" ]]; then
-    conpod=$(kubectl -n services get pod -l app.kubernetes.io/name=cray-conman -o jsonpath='{.items[].metadata.name}')
-    CONTAINER=cray-conman
 fi
-if [[ -z "$conpod" ]]; then
-    echo "ERROR! conman pod can't be located!"
-    exit 1
+conpod=$(kubectl -n services exec deploy/cray-console-operator -c cray-console-operator -- /app/get-node ${xname} | jq -r .podname)
+if [ -z "$conpod" ]; then
+  echo "Cannot find console pod for ${xname}" 1>&2
+  exit 1
 fi
-
-
-exec kubectl -n services exec -it $conpod -c $CONTAINER -- conman -j ${xname}
+exec kubectl -n services exec -it $conpod -c cray-console-node -- conman -j ${xname}

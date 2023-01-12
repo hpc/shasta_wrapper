@@ -34,6 +34,10 @@ function main {
             shift
             edit_file_nolock "$@"
             ;;
+        fas)
+            shift
+            fas "$@"
+            ;;
         gr*)
             shift
             group "$@"
@@ -45,6 +49,10 @@ function main {
         no*)
             shift
             node "$@"
+            ;;
+        power)
+            shift
+            power "$@"
             ;;
         rec*)
             shift
@@ -71,10 +79,12 @@ function help_shasta {
   echo "  bos : boot settings (session templates)"
   echo "  cluster : see cluster information"
   echo "  cfs : cfs ansible configuration options"
+  echo "  fas : firmware flashing and validation"
   echo "  group : group info and actions"
   echo "  image : image controls"
   echo "  node : node info and actions"
   echo "  recipe : recipes for building images"
+  echo "  power : controls power for components on the system"
   echo "  regression : run internal regression tests"
   echo "  version : print software version"
 }

@@ -24,6 +24,10 @@ function recipe {
             shift
             recipe_list "$@"
             ;;
+        delete)
+            shift
+            recipe_delete "$@"
+            ;;
         #edit)
         #    shift
         #    recipe_edit "$@"
@@ -55,7 +59,7 @@ function refresh_recipes {
         return;
     fi
 
-    RECIPE_RAW=$(cray ims recipes list --format json )
+    RECIPE_RAW=$(rest_api_query "ims/recipes" )
 
     IFS=$'\n'
     RECIPES=( $( echo "$RECIPE_RAW" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
@@ -76,7 +80,7 @@ function refresh_recipes {
 function recipe_list {
     refresh_recipes
     cluster_defaults_config
-    echo "CREATED                            ID                                     NAME(default for group)"
+    echo "${COLOR_BOLD}CREATED                            ID                                     NAME(default for group)${COLOR_RESET}"
     for id in "${!RECIPE_ID2NAME[@]}"; do
         name="${RECIPE_ID2NAME[$id]}"
         created="${RECIPE_ID2CREATED[$id]}"
@@ -188,7 +192,7 @@ function recipe_clone {
 function recipe_create {
     local NAME="$1"
     local FILE="$2"
-    local NEW_RECIPE_ID
+    local NEW_RECIPE_ID	
     ARTIFACT_FILE="$NAME.tar.gz"
 
     if [[ -z "$FILE" ]]; then
@@ -203,4 +207,3 @@ function recipe_create {
         --link-type s3 \
         --link-path s3://ims/recipes/$RECIPE_ID/$ARTIFACT_FILE
 }
-

@@ -19,7 +19,7 @@ function die {
     exit 2
 }
 
-## tmpdir 
+## tmpdir
 # make a demporary directory and report it's location in the RETURN variable
 function tmpdir {
     if [[ -z "$TMPDIR" ]]; then
@@ -73,6 +73,25 @@ function prompt {
     return $ANS
 }
 
+
+## wait_for_background_tasks
+# Wait for all background tasks to complete
+function wait_for_background_tasks {
+    local MESSAGE="$1"
+    local TOTAL="$2"
+    local COUNT JOBS
+
+    i=0
+    JOBS=99
+    while [[ "$JOBS" -gt "0" ]]; do
+        JOBS=$(jobs -r | wc -l)
+        ((COUNT=$TOTAL - $JOBS))
+        echo -en "\r$MESSAGE: $COUNT/$TOTAL"
+        sleep 2
+    done
+    echo
+}
+
 ## cmd_wait
 # Wait for the given command to return 0
 function cmd_wait {
@@ -119,13 +138,48 @@ function verbose_cmd {
     return $?
 }
 
+## edit_json_file
+# open the given file with the given command (blocking wait)
+function check_json_file {
+    local FILE AFTER BEFORE RET
+    local FILE="$1"
+
+    cat "$FILE" | jq > /dev/null
+    return $?
+}
+
 ## edit_file
 # open the given file with the given command (blocking wait)
 function edit_file {
-    local FILE AFTER BEFORE
+    local FILE AFTER BEFORE RET NO_CHANGES_OK
     local FILE="$1"
+    local FILE_TYPE="$2"
 
-    flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE" || die "Failed to get lock on $FILE. Someone else is modifying it"
+    RET=1
+    while [[ $RET -ne 0 ]]; do
+        flock -w 4 -n -x $FILE -c "$0 _edit_file $FILE"
+        RET=$?
+        if [[ $RET -eq 1 ]]; then
+            die "Failed to get lock on $FILE. Someone else is modifying it"
+        elif [[ $RET -eq 2 ]]; then
+            if [[ "$NO_CHANGES_OK" -ne 1 ]]; then
+                echo "No changes made, aborting!"
+                exit 0
+            fi
+        fi
+        if [[ "$FILE_TYPE" == "json" ]]; then
+            check_json_file "$FILE"
+            RET=$?
+        else
+            RET=0
+        fi
+        if [[ $RET -ne 0 ]]; then
+            echo "Error! Syntax errors found!"
+            echo "Press enter to fix file. Hit ctrl-c to discard changes to file"
+            read
+            NO_CHANGES_OK=1
+        fi
+    done
 }
 
 ## edit_file_nolock
@@ -143,18 +197,69 @@ function edit_file_nolock {
     AFTER=$(md5sum "$FILE")
 
     if [[ "$BEFORE" == "$AFTER" ]]; then
-        return 1
+        return 2
     fi
     return 0
+}
+## refresh_node_conversions_data
+# Delete and regenerate the node conversion database
+function refresh_node_conversions_data {
+    rm -f "$NODE_CONVERSION_FILE"
+    refresh_sat_data
+}
+
+## rest_api_query
+# Send a query request to the api server
+function rest_api_query {
+    local API="$1"
+    local RAW=$(curl -w '\nhttp_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    local OUTPUT=$(echo "$RAW" | head -n -1)
+    local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    echo "$OUTPUT"
+    echo $HTTP_CODE | grep -q 200
+    return $?
+}
+
+## rest_api_delete
+# Send a delete request to the api server
+function rest_api_delete {
+    local API="$1"
+    local RAW=$(curl -X DELETE -w '\nhttp_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    local OUTPUT=$(echo "$RAW" | head -n -1)
+    local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    echo "$OUTPUT"
+    echo $HTTP_CODE | grep -Eq '200|204'
+    return $?
+}
+
+## rest_api_patch
+# Send a query request to the api server
+function rest_api_patch {
+    local API="$1"
+    local DATA="$2"
+    local RAW=$(curl -w '\nhttp_code: %{http_code}\n' \
+      -s -k \
+      -H "Authorization: Bearer ${TOKEN}" \
+      -X PATCH \
+      -d "$DATA" \
+      -H "Content-Type: application/json" \
+      "https://api-gw-service-nmn.local/apis/$API"
+    )
+    local OUTPUT=$(echo "$RAW" | head -n -1)
+    local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
+    echo "$OUTPUT"
+    echo $HTTP_CODE | grep -q 200
+    return $?
 }
 
 ## get_node_conversions
 # Setup node conversions for all different node names and types (ie xname to nid) if it hasn't been done already.
 function get_node_conversions {
+    hsm_get_node_state
     if [[ ! -f "$NODE_CONVERSION_FILE" ]]; then
         refresh_sat_data
     fi
-    if [[ -z "${!CONVERT2XNAME[@]}" ]]; then
+    if [[ -z "${!CONVERT2FULLNID[@]}" ]]; then
         source "$NODE_CONVERSION_FILE"
     fi
 }
@@ -162,22 +267,29 @@ function get_node_conversions {
 ## refresh_sat_data
 # Pull down all the data from sat and use it to build a table of all conversion information (is nid to xname)
 function refresh_sat_data {
-    local SAT_FILE=/usr/share/shasta_wrapper/sat.out
-
-    sat status 2> /dev/null | grep Node | sed 's/[^a-zA-Z0-9 ]//g' > "$SAT_FILE"
-
-    IFS=$'\n'
-    NODES=( $(cat "$SAT_FILE" | awk '{print $1 " " $3}') )
-    IFS=$' \t\n'
+    local XNAME NID FULLNID NMN NODES ADD_ZEROS I
+    hsm_get_node_state
 
     echo "#!/bin/bash" > "$NODE_CONVERSION_FILE"
 
-    for NODE in "${NODES[@]}"; do
-        LINES=( $NODE )
-        XNAME="${LINES[0]}"
-        NID="${LINES[1]}"
-        FULLNID=$(printf 'nid%06d' $NID)
+    for XNAME in "${!HSM_NODE_ENABLED[@]}"; do
+        NID="${CONVERT2NID[$XNAME]}"
+        if [[ -z "$NID" ]]; then
+            continue
+        fi
+        FULLNID="$NID"
+        if [[ "${#NID}" -lt 6 ]]; then
+            ADD_ZEROS=$(( 6 - "${#NID}" ))
+            I=0
+            while [[ "$I" -lt $ADD_ZEROS ]]; do
+                FULLNID="0$FULLNID"
+                (( I++ ))
+            done
+        fi
+        FULLNID="nid$FULLNID"
         NMN="$FULLNID-nmn"
+
+
 
         echo  >> "$NODE_CONVERSION_FILE"
         echo  >> "$NODE_CONVERSION_FILE"
@@ -198,6 +310,7 @@ function refresh_sat_data {
         echo "CONVERT2NMN[$NID]=$NMN" >> "$NODE_CONVERSION_FILE"
         echo "CONVERT2NMN[$NMN]=$NMN" >> "$NODE_CONVERSION_FILE"
     done
+    source "$NODE_CONVERSION_FILE"
 }
 
 ## add_node_name
@@ -216,6 +329,20 @@ function add_node_name {
     if [[  -z "$XNAME" ]]; then
         die "Error node '$NODE' is invalid!"
     fi
+
+    # If this is a real node (added recently for example) it will show up in the
+    # CONVERT2NID but not in the CONVERT2FULLNID. This is because we refresh hsm
+    # every query, but don't construct the fullnids as it's expensive. If this is
+    # the case, we need to force the recreation of the xnames.
+    if [[ -n "${CONVERT2NID[$NAME]}" && -z "${CONVERT2FULLNID[$NAME]}" ]]; then
+        refresh_sat_data
+        return
+    fi
+    if [[ -n "${CONVERT2NID[$XNAME]}" && -z "${CONVERT2FULLNID[$XNAME]}" ]]; then
+        refresh_sat_data
+        return
+    fi
+
 
     # Validate the xname looks valid
     if [[ -n "${CONVERT2NID[$NAME]}" ]]; then

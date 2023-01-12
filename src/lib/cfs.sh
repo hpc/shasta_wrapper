@@ -81,10 +81,10 @@ function cfs_list {
     cluster_defaults_config
 
     # Get all config data
-    CONFIGS=( $(cray cfs configurations list --format json | jq '.[].name' | sed 's/"//g'))
+    CONFIGS=( $(rest_api_query "cfs/v2/configurations" | jq '.[].name' | sed 's/"//g'))
     echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
 
-    # Any cfs configs that are set as a default for an ansible group should 
+    # Any cfs configs that are set as a default for an ansible group should
     # have the ansible group name in paretheses and bolded.
     for CONFIG in "${CONFIGS[@]}"; do
         echo -n "$CONFIG"
@@ -104,7 +104,7 @@ function cfs_describe {
         echo "USAGE: $0 cfs describe [cfs config]"
 	return 1
     fi
-    cray cfs configurations describe --format json "$@"
+    rest_api_query "cfs/v2/configurations/$1"
     return $?
 }
 
@@ -115,7 +115,8 @@ function cfs_delete {
         echo "USAGE: $0 cfs delete [cfs config]"
 	return 1
     fi
-    cray cfs configurations delete --format json "$@"
+    echo cray cfs configurations delete --format json "$1"
+    rest_api_delete "cfs/v2/configurations/$1"
     return $?
 }
 
@@ -156,7 +157,7 @@ function cfs_clone {
     tmpdir
     TMPFILE="$TMPDIR/cfs_config.json"
 
-    cfs_describe $SRC --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE"
+    cfs_describe $SRC | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$TMPFILE"
 
     cray cfs configurations update $DEST --file "$TMPFILE" --format json > /dev/null 2>&1
     set +e
@@ -176,7 +177,7 @@ function cfs_edit {
     (
         set -e
         flock -x 42
-        cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
+        cfs_describe $CONFIG | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$CONFIG_DIR/$CONFIG.json" 2> /dev/null
 
         if [[ ! -s "$CONFIG_DIR/$CONFIG.json" ]]; then
             rm -f "$CONFIG_DIR/$CONFIG.json"
@@ -186,7 +187,7 @@ function cfs_edit {
 
 
         set +e
-        edit_file "$CONFIG_DIR/$CONFIG.json"
+        edit_file "$CONFIG_DIR/$CONFIG.json" 'json'
         if [[ "$?" == 0 ]]; then
             echo -n "Updating '$CONFIG' with new data..."
             verbose_cmd cray cfs configurations update $CONFIG --file ""$CONFIG_DIR/$CONFIG.json"" --format json > /dev/null 2>&1
@@ -239,7 +240,7 @@ function cfs_apply {
     cfs_log_job "$NAME"
 
 
-    cray cfs sessions delete "$NAME"
+    cfs_job_delete "$NAME"
 }
 
 ## cfs_clear_node_counters
@@ -250,18 +251,43 @@ function cfs_clear_node_counters {
 
     disown -a
     for NODE in "${NODES[@]}"; do
-        cray cfs components update --error-count 0 "$node" --enabled true > /dev/null 2>&1 &
+        rest_api_patch "cfs/v2/components/$NODE" '{ "errorCount": 0, "enabled": true }' > /dev/null 2>&1 &
     done
 
-    i=0
-    JOBS=99
-    while [[ "$JOBS" -gt "0" ]]; do
-        JOBS=$(jobs -r | wc -l)
-        COUNT="${#NODES[@]}"
-        ((i=$COUNT - $JOBS))
-        echo -en "\rUpdating node state: $i/${#NODES[@]}"
-        sleep 2
+    wait_for_background_tasks "Updating node CFS state" "${#NODES[@]}"
+}
+
+## cfs_disable_nodes
+# Clear the error counters on the given node and ensure it's enabled
+function cfs_enable_nodes {
+    local STATE="$1"
+    shift
+    local NODES=( "$@" )
+    local NODE i COUNT JOBS
+
+    disown -a
+    for NODE in "${NODES[@]}"; do
+        rest_api_patch "cfs/v2/components/$NODE" "{ \"enabled\": $STATE }" > /dev/null 2>&1 &
     done
+
+    wait_for_background_tasks "Updating node CFS state" "${#NODES[@]}"
+}
+
+## cfs_clear_node_state
+# Clear the node state forcing it to rerun cfs
+function cfs_clear_node_state {
+    local NODES=( "$@" )
+    local NODE i COUNT JOBS
+
+    disown -a
+    for NODE in "${NODES[@]}"; do
+        rest_api_patch "cfs/v2/components/$NODE" '{ "state": [], "errorCount": 0 }' > /dev/null 2>&1 &
+    done
+
+    wait_for_background_tasks "Resetting node CFS state" "${#NODES[@]}"
+    echo
+    echo "All nodes have had their cfs state reset. This should cause new cfs jobs to spawn shortly."
+    echo "If you have had a lot of failed cfs runs you may need to restart the cfs batcher, as it backs off of launching when a lot have failed"
     echo
 }
 
@@ -269,7 +295,8 @@ function cfs_clear_node_counters {
 # Get a list of the nodes that cfs has not configured, and the group that node is a member of
 function cfs_unconfigured {
     refresh_ansible_groups
-    NODES=( $(cray cfs components list --format json | jq '.[] | select(.configurationStatus != "configured")' | jq '.id' | sed 's/"//g') )
+    #local NODES
+    NODES=( $(rest_api_query "cfs/v2/components" | jq '.[] | select(.configurationStatus != "configured")' | jq '. | select(.enabled == true)'  | jq '.id' | sed 's/"//g') )
 
     echo -e "${COLOR_BOLD}XNAME\t\tGROUP$COLOR_RESET"
     for node in "${NODES[@]}"; do
@@ -295,10 +322,10 @@ function cfs_log_job {
     fi
 
     set -e
-    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
-    JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
+    cmd_wait_output 'job' rest_api_query "cfs/v2/sessions/$CFS" 2>&1
+    JOB=$(rest_api_query "cfs/v2/sessions/$CFS" | jq '.status.session.job' | sed 's/"//g')
 
-    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
+    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services 2>&1
     POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
     set +e
 
@@ -339,7 +366,7 @@ function cfs_logwatch {
         sed 's/,//g') )
 
     # init container logs
-    # TODO: This method has an issue where logs will only be shown if the init 
+    # TODO: This method has an issue where logs will only be shown if the init
     # containers are successfull. Need to look at this.
     for cont in "${INIT_CONTAIN[@]}"; do
         echo
@@ -352,7 +379,7 @@ function cfs_logwatch {
     done
 
     # container logs
-    # We look and inventory first as it's run before and ansible ones, and is 
+    # We look and inventory first as it's run before and ansible ones, and is
     # alphabetically after in the list
     echo
     echo
@@ -424,7 +451,7 @@ function cfs_update {
             set -e
             flock -x 42
 
-            cfs_describe $CONFIG --format json | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
+            cfs_describe $CONFIG | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
 
             if [[ ! -s "$FILE" ]]; then
                 rm -f "$FILE"
@@ -497,4 +524,3 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
-

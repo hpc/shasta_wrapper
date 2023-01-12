@@ -19,6 +19,10 @@ function group {
             shift
             group_action configure "$@"
             ;;
+        clear_errors)
+            shift
+            group_action clear_errors "$@"
+            ;;
         li*)
             shift
             group_list "$@"
@@ -26,6 +30,30 @@ function group {
         des*)
             shift
             group_describe "$@"
+            ;;
+        power_on)
+            shift
+            group_action power_on "$@"
+            ;;
+        poweron)
+            shift
+            group_action power_on "$@"
+            ;;
+        power_off)
+            shift
+            group_action power_off "$@"
+            ;;
+        poweroff)
+            shift
+            group_action power_off "$@"
+            ;;
+        power_reset)
+            shift
+            group_action power_reset "$@"
+            ;;
+        power_status)
+            shift
+            group_action power_status "$@"
             ;;
         reboot)
             shift
@@ -55,9 +83,14 @@ function group_help {
     echo    "ACTIONS:"
     echo -e "\tboot [group list] : Boots the nodes in the given group with the group's default bos template."
     echo -e "\tconfig [group list] : Configures the nodes in the given group with the group's default cfs config."
+    echo -e "\tclear_errors [group list] : Resets the node error counters to 0."
     echo -e "\tbuild_images <--map> <group>: cluster node group information"
     echo -e "\tdescribe : (same as show)"
     echo -e "\tlist : list all available node groups"
+    echo -e "\tpower_off <options> [group]: Powers the given nodes off"
+    echo -e "\tpower_on <options> [group]: Powers the given nodes on"
+    echo -e "\tpower_reset [group]: Powers the given nodes off then on again"
+    echo -e "\tpower_status <options> [group]: Provides the power state of the given group of nodes"
     echo -e "\treboot [group list] : Reboots the given group into it's default bos template."
     echo -e "\tshow : show details on a specific node group"
     echo -e "\tsummary <-v> : show all groups and their general configs"
@@ -84,14 +117,28 @@ function group_list {
 function group_action {
     local ACTION="$1"
     shift
+    local ARGS HELP
+    ARGS=""
+    OPTIND=1
+    while getopts "yfr" OPTION ; do
+        case "$OPTION" in
+            y) ARGS+=" -y" ;;
+            f) [[ "$ACTION" == "power_off" ]] && ARGS+=" -f" ;;
+            :) echo "-$OPTARG must have an arument"; exit 1 ;;
+            \?) HELP=1
+                return 1
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
     local GROUP_LIST=( "$@" )
     local NODES GROUP
-    if [[ -z "${GROUP_LIST[@]}" ]]; then
-        echo "USAGE: $0 group $ACTION [group]" 1>&2
+    if [[ -z "${GROUP_LIST[@]}" || -n "$HELP" ]]; then
+        echo "USAGE: $0 group $ACTION <options> [group]" 1>&2
         exit 1
     fi
     refresh_ansible_groups
-
+    NODES_CONVERTED=1
     for GROUP in "${GROUP_LIST[@]}"; do
         if [[ -z "${GROUP2NODES[$GROUP]}" ]]; then
             die "Group '$GROUP' is not a valid group" 1>&2
@@ -99,7 +146,21 @@ function group_action {
     done
     for GROUP in "${GROUP_LIST[@]}"; do
         NODES="${GROUP2NODES[$GROUP]}"
-        node_action "$ACTION" $NODES
+        if [[ "$ACTION" == "configure" ]]; then
+            node_config $NODES
+        elif [[ "$ACTION" == "clear_errors" ]]; then
+            node_clear_errors $NODES
+        elif [[ "$ACTION" == "power_on" ]]; then
+            power_action on $ARGS $NODES
+        elif [[ "$ACTION" == "power_off" ]]; then
+            power_action off $ARGS $NODES
+        elif [[ "$ACTION" == "power_reset" ]]; then
+            power_reset $ARGS $NODES
+        elif [[ "$ACTION" == "power_status" ]]; then
+            power_status $NODES
+        else
+            node_action $ARGS "$ACTION" $NODES
+        fi
     done
 }
 

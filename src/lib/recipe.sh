@@ -24,6 +24,10 @@ function recipe {
             shift
             recipe_list "$@"
             ;;
+        delete)
+            shift
+            recipe_delete "$@"
+            ;;
         #edit)
         #    shift
         #    recipe_edit "$@"
@@ -188,7 +192,7 @@ function recipe_clone {
 function recipe_create {
     local NAME="$1"
     local FILE="$2"
-    local NEW_RECIPE_ID
+    local NEW_RECIPE_ID	
     ARTIFACT_FILE="$NAME.tar.gz"
 
     if [[ -z "$FILE" ]]; then

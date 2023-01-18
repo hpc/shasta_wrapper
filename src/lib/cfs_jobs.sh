@@ -20,7 +20,7 @@ function cfs_job {
             ;;
         log*)
             shift
-            cfs_log_job "$@"
+            cfs_job_log "$@"
             ;;
         sh*)
             shift
@@ -137,5 +137,101 @@ function cfs_job_delete {
         fi
         echo cray cfs sessions delete --format json $job
         rest_api_delete "cfs/v2/sessions/$job"
+    done
+}
+
+## cfs_job_log
+# Get the logs from the given cfs job id
+function cfs_job_log {
+    TS=''
+    if [[ "$1" == '-t' ]]; then
+        shift
+        TS='--timestamps'
+    fi
+    local CFS="$1"
+    local POD
+
+    if [[ -z "$CFS" ]]; then
+        echo "USAGE: $0 cfs job log <cfs jobid>"
+        exit 1
+    fi
+
+    set -e
+    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
+    JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
+
+    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
+    POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
+    set +e
+
+    echo "################################################"
+    echo "#### INFO"
+    echo "################################################"
+    echo "CFS SESSION:    $CFS"
+    echo "KUBERNETES JOB: $JOB"
+    echo "KUBERNETES POD: $POD"
+    echo "################################################"
+    echo "#### END INFO"
+    echo "################################################"
+    cfs_job_logwatch "$POD"
+}
+
+## cfs_job_logwatch
+# Get the logs of a given cfs kube pod
+function cfs_job_logwatch {
+    POD_ID=$1
+    INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json |\
+        jq '.metadata.managedFields' |\
+        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
+        grep -v null |\
+        jq 'keys' |\
+        grep name |\
+        sed 's|  "k:{\\"name\\":\\"||g' |\
+        sed 's|\\"}"||g' | \
+        sed 's/,//g') )
+
+    CONTAIN=( $(kubectl get pods $POD_ID -n services -o json |\
+        jq '.metadata.managedFields' |\
+        jq '.[].fieldsV1."f:spec"."f:containers"' |\
+        grep -v null |\
+        jq 'keys' |\
+        grep name |\
+        sed 's|  "k:{\\"name\\":\\"||g' |\
+        sed 's|\\"}"||g' | \
+        sed 's/,//g') )
+
+    # init container logs
+    # TODO: This method has an issue where logs will only be shown if the init
+    # containers are successfull. Need to look at this.
+    for cont in "${INIT_CONTAIN[@]}"; do
+        echo
+        echo
+        echo "#################################################"
+        echo "### init container: $cont"
+        echo "#################################################"
+        cmd_wait_output "Cloning successful" kubectl logs $TS -n services "$POD_ID" -c "$cont" 2>&1
+        verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
+    done
+
+    # container logs
+    # We look and inventory first as it's run before and ansible ones, and is
+    # alphabetically after in the list
+    echo
+    echo
+    echo "#################################################"
+    echo "### container: inventory"
+    echo "#################################################"
+    cmd_wait kubectl logs $TS -n services "$POD_ID" -c "inventory" 2>&1
+    verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c "inventory"
+    for cont in "${CONTAIN[@]}"; do
+        if [[ "$cont" != "inventory" ]]; then
+            echo
+            echo
+            echo "#################################################"
+            echo "### container: $cont"
+            echo "#################################################"
+            verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
+
+        fi
     done
 }

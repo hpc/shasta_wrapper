@@ -509,7 +509,7 @@ function image_configure {
     cmd_wait_output "job" cfs_job_describe "$SESSION_NAME"
 
     JOB_ID=$(cfs_job_describe $SESSION_NAME  | jq '.status.session.job' | sed 's/"//g')
-    cfs_log_job "$SESSION_NAME"
+    cfs_job_log "$SESSION_NAME"
 
     cmd_wait_output 'complete' cfs_job_describe "$SESSION_NAME"
 

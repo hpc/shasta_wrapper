@@ -5,6 +5,8 @@ function regression_syntax_cfs_jobs {
     function_ok cfs_job_list
     function_ok cfs_job_describe
     function_ok cfs_job_delete
+    function_ok cfs_job_log
+    function_ok cfs_job_logwatch
 
     echo
 }

@@ -1,3 +1,7 @@
+## fas library
+# Contains all commands for `shasta fas`
+# Used for managing firmware.
+
 
 FAS_SCRIPTS="$SHASTACMD_LIBDIR/../fas_scripts/"
 FAS_SCRIPTS_FLASH="$FAS_SCRIPTS/flash"
@@ -5,7 +9,6 @@ FAS_SCRIPTS_CHECK="$FAS_SCRIPTS/check"
 mkdir -p "$FAS_SCRIPTS"
 mkdir -p "$FAS_SCRIPTS_FLASH"
 mkdir -p "$FAS_SCRIPTS_CHECK"
-
 
 function fas {
     case "$1" in
@@ -38,9 +41,16 @@ function fas_help {
     exit 1
 }
 
+## fas_check_firmware
+# Look to see if given component(s) have firmware updates
 function fas_check_firmware {
     local FAS_COMPONENT=$1
     local FAS_FILE="$FAS_SCRIPTS_CHECK/${FAS_COMPONENT}.json"
+
+    if [[ -z "$FAS_COMPONENT" ]]; then
+        echo "USAGE: $0 fas check [component]"
+        exit 2
+    fi
 
     if [[ ! -f "$FAS_FILE" ]]; then
         die "Error component '$FAS_COMPONENT' no check action found!"
@@ -69,9 +79,16 @@ function fas_check_firmware {
     cray fas actions status list "$ACTION_ID" | grep -v '= 0'
 }
 
+## fas_check_firmware
+# flash the given component(s) that have firmware updates
 function fas_flash_firmware {
     local FAS_COMPONENT=$1
     local FAS_FILE="$FAS_SCRIPTS_FLASH/${FAS_COMPONENT}.json"
+
+    if [[ -z "$FAS_COMPONENT" ]]; then
+        echo "USAGE: $0 fas flash [component]"
+        exit 2
+    fi
 
     if [[ ! -f "$FAS_FILE" ]]; then
         die "Error component '$FAS_COMPONENT' no flash action found!"
@@ -117,6 +134,8 @@ function fas_flash_firmware {
     cray fas actions status list "$ACTION_ID" | grep -v '= 0'
 }
 
+## fas_list
+# lists the available components
 function fas_list {
     echo "=== Available FAS Actions ==="
     echo "# Check Component Options #"

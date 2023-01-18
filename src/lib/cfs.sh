@@ -68,7 +68,6 @@ function cfs_help {
     echo -e "\tjob [action]: Manage cfs jobs"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs config] : shows all info on a given cfs"
-    echo -e "\tunconf : List all unconfigured nodes"
     echo -e "\tupdate [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
 
     exit 1

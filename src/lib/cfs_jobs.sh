@@ -102,8 +102,23 @@ function cfs_job_describe {
 
     refresh_cfs_jobs_raw
 
-    echo "$CFS_JOBS_RAW" | jq ".[] | select(.name == \"$ID\")"
+    local OUTPUT=$(echo "$CFS_JOBS_RAW" | jq ".[] | select(.name == \"$ID\")")
+    if [[ -z "$OUTPUT" ]]; then
+        return 1
+    fi
+    echo "$OUTPUT"
+    return 0
 }
+
+## cfsi_job_exit_if_not_valid
+# exit if the given cfs config is not valid (doesn't exist)
+function cfs_job_exit_if_not_valid {
+    cfs_job_describe "$1" > /dev/null 2> /dev/null
+    if [[ $? -ne 0 ]]; then
+        die "Error! $1 is not a valid cfs job/session."
+    fi
+}
+
 
 ## cfs_job_delete
 # Delete the given cfs jobs
@@ -155,6 +170,7 @@ function cfs_job_log {
         echo "USAGE: $0 cfs job log <cfs jobid>"
         exit 1
     fi
+    cfs_job_exit_if_not_valid "$CFS"
 
     set -e
     cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json

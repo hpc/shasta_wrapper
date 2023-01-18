@@ -60,7 +60,7 @@ function cfs_help {
     echo    "USAGE: $0 cfs [action]"
     echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
-    echo -e "\tapply [cfs] [node] : Runs the given cfs against its confgured nodes"
+    echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
     echo -e "\tedit [cfs config] : Edit a given cfs."
     echo -e "\tdelete [cfs config] : delete the cfs"
@@ -215,10 +215,14 @@ function cfs_apply {
     echo "$@"
     local CONFIG=$1
     shift
-    local NODES=( "$@" )
+
+    convert2xname "$@"
+    local NODES=( $RETURN )
+
     if [[ -z "$NAME" ]]; then
         NAME=cfs`date +%s`
     fi
+    cfs_exit_if_not_valid "$CONFIG"
 
     NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
     if [[ -z "$CONFIG" ]]; then
@@ -310,9 +314,8 @@ function cfs_log_job {
     TS=''
     if [[ "$1" == '-t' ]]; then
         shift
-        TS='--timestamps'    
+        TS='--timestamps'
     fi
-
     local CFS="$1"
     local POD
 
@@ -322,10 +325,10 @@ function cfs_log_job {
     fi
 
     set -e
-    cmd_wait_output 'job' rest_api_query "cfs/v2/sessions/$CFS" 2>&1
-    JOB=$(rest_api_query "cfs/v2/sessions/$CFS" | jq '.status.session.job' | sed 's/"//g')
+    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
+    JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
 
-    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services 2>&1
+    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
     POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
     set +e
 
@@ -401,7 +404,6 @@ function cfs_logwatch {
     done
 }
 
-## read_git_config
 # Reads /etc/cfs_defaults.conf to get what git repos we can update with new conig ids
 function read_git_config {
     local REPO

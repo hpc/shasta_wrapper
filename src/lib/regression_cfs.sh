@@ -10,8 +10,6 @@ function regression_syntax_cfs {
     function_ok cfs_edit
     function_ok cfs_apply
     function_ok cfs_unconfigured
-    function_ok cfs_log_job
-    function_ok cfs_logwatch
     function_ok read_git_config
     function_ok cfs_update
     function_ok cfs_update_git

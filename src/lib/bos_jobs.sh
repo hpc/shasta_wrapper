@@ -96,8 +96,15 @@ function bos_job_describe {
         echo "USAGE: $0 bos job show [jobid]"
 	return 1
     fi
-    rest_api_query "bos/v1/session/$1"
-    return $?
+    OUTPUT=$(rest_api_query "bos/v1/session/$1")
+    local RET="$?"
+
+    if [[ "$RET" -ne 0 ]]; then
+        echo "Bos job '$1' does not exist"
+    else
+        echo "$OUTPUT"
+    fi
+    return $RET
 }
 
 ## bos_job_delete

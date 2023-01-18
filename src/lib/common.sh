@@ -379,6 +379,10 @@ function add_node_name {
 ## convert2xname
 # attempt to convert the given name into it's xname
 function convert2xname {
+    if [[ -z "$@" ]]; then
+        RETURN=()
+        return
+    fi
     local NODES=( $(nodeset -e "$@") )
     local NODE
     get_node_conversions
@@ -396,6 +400,10 @@ function convert2xname {
 ## convert2nid
 # attempt to convert the given name into it's nid
 function convert2nid {
+    if [[ -z "$@" ]]; then
+        RETURN=()
+        return
+    fi
     local NODES=( $(nodeset -e "$@") )
     local NODE
     get_node_conversions
@@ -413,6 +421,10 @@ function convert2nid {
 ## convert2fullnid
 # attempt to convert the given name into it's fullnid
 function convert2fullnid {
+    if [[ -z "$@" ]]; then
+        RETURN=()
+        return
+    fi
     local NODES=( $(nodeset -e "$@") )
     local NODE
     get_node_conversions
@@ -431,6 +443,10 @@ function convert2fullnid {
 ## convert2nmn
 # attempt to convert the given name into it's nmn hostname
 function convert2nmn {
+    if [[ -z "$@" ]]; then
+        RETURN=()
+        return
+    fi
     local NODES=( $(nodeset -e "$@") )
     local NODE
     get_node_conversions

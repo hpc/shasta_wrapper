@@ -60,7 +60,7 @@ function cfs_help {
     echo    "USAGE: $0 cfs [action]"
     echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
-    echo -e "\tapply [cfs] [node] : Runs the given cfs against its confgured nodes"
+    echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
     echo -e "\tedit [cfs config] : Edit a given cfs."
     echo -e "\tdelete [cfs config] : delete the cfs"
@@ -68,7 +68,6 @@ function cfs_help {
     echo -e "\tjob [action]: Manage cfs jobs"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs config] : shows all info on a given cfs"
-    echo -e "\tunconf : List all unconfigured nodes"
     echo -e "\tupdate [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
 
     exit 1
@@ -215,10 +214,14 @@ function cfs_apply {
     echo "$@"
     local CONFIG=$1
     shift
-    local NODES=( "$@" )
+
+    convert2xname "$@"
+    local NODES=( $RETURN )
+
     if [[ -z "$NAME" ]]; then
         NAME=cfs`date +%s`
     fi
+    cfs_exit_if_not_valid "$CONFIG"
 
     NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
     if [[ -z "$CONFIG" ]]; then
@@ -237,7 +240,7 @@ function cfs_apply {
         cray cfs sessions create --name "$NAME" --configuration-name $CONFIG --format json
     fi
     sleep 1
-    cfs_log_job "$NAME"
+    cfs_job_log "$NAME"
 
 
     cfs_job_delete "$NAME"
@@ -304,104 +307,6 @@ function cfs_unconfigured {
     done
 }
 
-## cfs_log_job
-# Get the logs from the given cfs job id
-function cfs_log_job {
-    TS=''
-    if [[ "$1" == '-t' ]]; then
-        shift
-        TS='--timestamps'    
-    fi
-
-    local CFS="$1"
-    local POD
-
-    if [[ -z "$CFS" ]]; then
-        echo "USAGE: $0 cfs job log <cfs jobid>"
-        exit 1
-    fi
-
-    set -e
-    cmd_wait_output 'job' rest_api_query "cfs/v2/sessions/$CFS" 2>&1
-    JOB=$(rest_api_query "cfs/v2/sessions/$CFS" | jq '.status.session.job' | sed 's/"//g')
-
-    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services 2>&1
-    POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
-    set +e
-
-    echo "################################################"
-    echo "#### INFO"
-    echo "################################################"
-    echo "CFS SESSION:    $CFS"
-    echo "KUBERNETES JOB: $JOB"
-    echo "KUBERNETES POD: $POD"
-    echo "################################################"
-    echo "#### END INFO"
-    echo "################################################"
-    cfs_logwatch "$POD"
-}
-
-## cfs_logwatch
-# Get the logs of a given cfs kube pod
-function cfs_logwatch {
-    POD_ID=$1
-    INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
-
-    CONTAIN=( $(kubectl get pods $POD_ID -n services -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:containers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
-
-    # init container logs
-    # TODO: This method has an issue where logs will only be shown if the init
-    # containers are successfull. Need to look at this.
-    for cont in "${INIT_CONTAIN[@]}"; do
-        echo
-        echo
-        echo "#################################################"
-        echo "### init container: $cont"
-        echo "#################################################"
-        cmd_wait_output "Cloning successful" kubectl logs $TS -n services "$POD_ID" -c "$cont" 2>&1
-        verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
-    done
-
-    # container logs
-    # We look and inventory first as it's run before and ansible ones, and is
-    # alphabetically after in the list
-    echo
-    echo
-    echo "#################################################"
-    echo "### container: inventory"
-    echo "#################################################"
-    cmd_wait kubectl logs $TS -n services "$POD_ID" -c "inventory" 2>&1
-    verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c "inventory"
-    for cont in "${CONTAIN[@]}"; do
-        if [[ "$cont" != "inventory" ]]; then
-            echo
-            echo
-            echo "#################################################"
-            echo "### container: $cont"
-            echo "#################################################"
-            verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
-
-        fi
-    done
-}
-
-## read_git_config
 # Reads /etc/cfs_defaults.conf to get what git repos we can update with new conig ids
 function read_git_config {
     local REPO

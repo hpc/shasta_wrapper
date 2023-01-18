@@ -175,6 +175,9 @@ function cfs_job_log {
     set -e
     cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
     JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
+    if [[ "$JOB" == 'null' ]]; then
+        die "Error! got null kubernetes job from cfs. This can indicate an internal failure inside of cfs."
+    fi
 
     cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
     POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')

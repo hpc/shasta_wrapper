@@ -19,7 +19,7 @@ function regression_image {
     echo "## image"
     ok "refresh_images returns ok" refresh_images
     ok "image_list returns ok" image_list
-    RANDOM_IMAGE="echo ${!IMAGE_ID2NAME} | awk '{print $1}'"
+    RANDOM_IMAGE=$(echo "${!IMAGE_ID2NAME[@]}" | awk '{print $1}')
     ok "image_describe with random image returns ok" image_describe "$RANDOM_IMAGE" 
 
     echo

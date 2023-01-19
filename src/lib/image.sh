@@ -551,3 +551,32 @@ function image_clean_deleted_artifacts {
         cray artifacts delete boot-images --format json "$artifact" | grep -P '\S'
     done
 }
+
+## image_defaults
+# Get and set the currently used images for each group and set that in the CUR_IMAGE_NAME and CUR_IMAGE_ID variables.
+function image_defaults {
+    local IMAGE_RAW BOS
+    if [[ -n "${!CUR_IMAGE_NAME[@]}" ]]; then
+        return 0
+    fi
+    cluster_defaults_config
+    for group in "${!BOS_DEFAULT[@]}"; do
+        BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
+
+        if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
+            echo "Warning: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+        fi
+
+        IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
+        if [[ -z "$IMAGE_RAW" ]]; then
+            echo "Warning: Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
+            CUR_IMAGE_NAME[$group]="Invalid"
+            CUR_IMAGE_ID[$group]="Invalid"
+        else
+            CUR_IMAGE_NAME[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.name)\"" | sed 's/"//g')
+            CUR_IMAGE_ID[$group]=$(echo "$IMAGE_RAW" | jq ". | \"\(.id)\"" | sed 's/"//g')
+        fi
+    done
+}
+
+## cluster_validate

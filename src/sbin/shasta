@@ -18,10 +18,6 @@ function main {
             shift
             cfs "$@"
             ;;
-        cl*)
-            shift
-            cluster "$@"
-            ;;
         con*)
             shift
             cfs "$@"
@@ -77,7 +73,6 @@ function help_shasta {
   echo "DESC: Intended to provide a more straitforward interface to the cray shasta environment. You can get more functionality via the direct 'cray' commands. However, they are very cumbersome to use"
   echo "ACTIONS:"
   echo "  bos : boot settings (session templates)"
-  echo "  cluster : see cluster information"
   echo "  cfs : cfs ansible configuration options"
   echo "  fas : firmware flashing and validation"
   echo "  group : group info and actions"

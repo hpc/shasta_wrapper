@@ -1,6 +1,9 @@
 ## common library
 # Contains common functions used in the shasta wrapper
 
+declare -A BOS_DEFAULT CONFIG_DEFAULT RECIPE_DEFAULT IMAGE_DEFAULT_NAME CUR_IMAGE_ID CUR_IMAGE_NAME CUR_IMAGE_ETAG CUR_IMAGE_CONFIG IMAGE_GROUPS
+CLUSTER_GROUPS=( )
+
 TMPDIR=""
 
 COLOR_RED=$(echo '\033[0;31m')
@@ -473,4 +476,58 @@ function json_set_field {
     mv "$FILE.tmp" "$FILE"
     cat $FILE | jq "$FIELD" > /dev/null || return 1
     return 0
+}
+
+## cluster_defaults_config
+# Grab all the defaults for each node group and set their variables
+function cluster_defaults_config {
+    local IMAGE_RAW BOS
+    if [[ -n "${!BOS_DEFAULT[@]}" ]]; then
+        return 0
+    fi
+    source /etc/cluster_defaults.conf
+    refresh_bos_raw
+    for group in "${!BOS_DEFAULT[@]}"; do
+        BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
+
+        if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
+            die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+        fi
+
+	if [[ -n "${CONFIG_DEFAULT[$group]}" ]]; then
+	    CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
+	else
+            CUR_IMAGE_CONFIG[$group]=$(echo "$BOS" | jq '.cfs.configuration' | sed 's/"//g')
+	fi
+        CUR_IMAGE_ETAG[$group]=$(echo "$BOS" | jq '.boot_sets[].etag' | sed 's/"//g')
+    done
+    for group in "${!CONFIG_DEFAULT[@]}"; do
+        CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
+    done
+}
+
+# Go through and check all the configuration and validate it all looks sane (check that things actually map to things that exist)
+function cluster_validate {
+    local group RECIPE CONFIG
+    cluster_defaults_config
+
+    local CONFIG_RAW CONFIG RECIPE_RAW RECIPE
+    CONFIG_RAW=$(rest_api_query "cfs/v2/configurations")
+    RECIPE_RAW=$(rest_api_query "ims/recipes")
+    for group in "${!BOS_DEFAULT[@]}"; do
+        echo -n "Checking $group..."
+        # Validate recipe used exists
+        RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"${RECIPE_DEFAULT[$group]}\")")
+        if [[ -z "$RECIPE" ]]; then
+            echo
+            die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
+        fi
+        # Validate cfs configuration used exists
+        CONFIG=$(echo "$CONFIG_RAW" | jq ".[] | select(.name == \"${CUR_IMAGE_CONFIG[$group]}\")")
+        if [[ -z "$CONFIG" ]]; then
+            echo
+            die "Error config '${CUR_IMAGE_CONFIG[$group]}' set in bos sessiontemplate '${BOS_DEFAULT[$group]}' is not a valid configuration. check bos configuration."
+        fi
+        echo "ok"
+    done
 }

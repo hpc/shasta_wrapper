@@ -1,10 +1,13 @@
 function regression_syntax_recipe {
     echo "## recipe"
+    function_ok recipe
+    function_ok recipe_help
     function_ok refresh_recipes
     function_ok recipe_list
     function_ok recipe_delete
+    function_ok recipe_get
     function_ok recipe_clone
-    function_ok recipe_edit
+    function_ok recipe_create
 
     echo
 }

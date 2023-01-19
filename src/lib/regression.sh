@@ -66,10 +66,13 @@ function regression_syntax {
     regression_syntax_bos_jobs
     regression_syntax_cfs
     regression_syntax_cfs_jobs
+    regression_syntax_fas
+    regression_syntax_hsm
     regression_syntax_recipe
 
     # last as last level of dependance
     regression_syntax_image
+    regression_syntax_image_jobs
     regression_syntax_group
     regression_syntax_node
 }

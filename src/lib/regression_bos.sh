@@ -1,16 +1,19 @@
 
 function regression_syntax_bos {
     echo "## bos"
-    function_ok refresh_bos_raw 
-    function_ok bos_list 
-    function_ok bos_describe 
-    function_ok bos_delete 
-    function_ok bos_exit_if_not_valid 
-    function_ok bos_exit_if_exists 
-    function_ok bos_clone 
-    function_ok bos_update_template 
-    function_ok bos_edit 
-    function_ok bos_boot
+    function_ok bos
+    function_ok bos_help
+    function_ok refresh_bos_raw
+    function_ok bos_get_default_node_group
+    function_ok bos_list
+    function_ok bos_describe
+    function_ok bos_delete
+    function_ok bos_exit_if_not_valid
+    function_ok bos_exit_if_exists
+    function_ok bos_clone
+    function_ok bos_update_template
+    function_ok bos_edit
+    function_ok bos_action
 
     echo
 }

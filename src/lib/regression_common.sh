@@ -3,11 +3,26 @@ function regression_syntax_common {
     echo "## common"
     function_ok die
     function_ok tmpdir
+    function_ok prompt_yn
     function_ok prompt
+    function_ok wait_for_background_tasks
     function_ok cmd_wait
     function_ok cmd_wait_output
     function_ok verbose_cmd
+    function_ok check_json_file
     function_ok edit_file
+    function_ok edit_file_nolock
+    function_ok refresh_node_conversions_data
+    function_ok rest_api_query
+    function_ok rest_api_delete
+    function_ok rest_api_patch
+    function_ok get_node_conversions
+    function_ok refresh_sat_data
+    function_ok add_node_name
+    function_ok convert2xname
+    function_ok convert2nid
+    function_ok convert2fullnid
+    function_ok convert2nmn
     function_ok json_set_field
 
     echo

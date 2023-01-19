@@ -1,6 +1,8 @@
 
 function regression_syntax_cfs {
     echo "## cfs"
+    function_ok cfs
+    function_ok cfs_help
     function_ok cfs_list
     function_ok cfs_describe
     function_ok cfs_delete
@@ -9,9 +11,13 @@ function regression_syntax_cfs {
     function_ok cfs_clone
     function_ok cfs_edit
     function_ok cfs_apply
+    function_ok cfs_clear_node_counters
+    function_ok cfs_enable_nodes
+    function_ok cfs_clear_node_state
     function_ok cfs_unconfigured
     function_ok read_git_config
     function_ok cfs_update
+    function_ok get_git_password
     function_ok cfs_update_git
 
     echo

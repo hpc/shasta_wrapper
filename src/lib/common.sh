@@ -491,7 +491,8 @@ function cluster_defaults_config {
         BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
 
         if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
-            die "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+            echo "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+	    continue
         fi
 
 	if [[ -n "${CONFIG_DEFAULT[$group]}" ]]; then
@@ -530,4 +531,4 @@ function cluster_validate {
         fi
         echo "ok"
     done
-}
+

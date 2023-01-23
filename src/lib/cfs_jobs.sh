@@ -100,7 +100,7 @@ function cfs_job_describe {
         exit 1
     fi
 
-    refresh_cfs_jobs_raw
+    refresh_cfs_jobs_raw --force
 
     local OUTPUT=$(echo "$CFS_JOBS_RAW" | jq ".[] | select(.name == \"$ID\")")
     if [[ -z "$OUTPUT" ]]; then

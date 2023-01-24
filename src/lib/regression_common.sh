@@ -24,6 +24,8 @@ function regression_syntax_common {
     function_ok convert2fullnid
     function_ok convert2nmn
     function_ok json_set_field
+    function_ok get_kube_token
+    function_ok setup_craycli
 
     echo
 }

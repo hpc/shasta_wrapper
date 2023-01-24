@@ -293,6 +293,8 @@ function image_build_bare {
     if [[ -z "$NEW_IMAGE_NAME" ]]; then
         NEW_IMAGE_NAME="img_$RECIPE_NAME"
     fi
+    setup_craycli
+
     cluster_defaults_config
     if [[ -z "$IMS_PUBLIC_KEY_ID" ]]; then
 	    die "[$GROUP_NAME] Error! IMS_PUBLIC_KEY_ID is not defined in '/etc/cluster_defaults.conf'"
@@ -450,6 +452,7 @@ function image_configure {
         echo -e "\t-n [name] - set a name for the cfs run instead of the default name"
         exit 1
     fi
+    setup_craycli
 
     ## Validate group name
     EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
@@ -546,6 +549,8 @@ function image_configure {
 function image_clean_deleted_artifacts {
     local ARTIFACTS=()
     local artifact
+    setup_craycli
+
     ARTIFACTS=( $(cray artifacts list boot-images --format json | jq '.artifacts' | jq '.[].Key' | sed 's/"//g' | grep ^deleted/) )
     for artifact in "${ARTIFACTS[@]}"; do
         cray artifacts delete boot-images --format json "$artifact" | grep -P '\S'

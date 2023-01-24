@@ -144,6 +144,7 @@ function cfs_clone {
     local SRC="$1"
     local DEST="$2"
     local TEMPFILE
+    setup_craycli
 
     if [[ -z "$SRC" || -z "$DEST" ]]; then
         echo "USAGE: $0 cfs clone [src cfs] [dest cfs]" 1>&2
@@ -172,6 +173,7 @@ function cfs_edit {
     fi
 
     cfs_exit_if_not_valid "$CONFIG"
+    setup_craycli
 
     (
         set -e
@@ -209,6 +211,7 @@ function cfs_apply {
             \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
         esac
     done
+    setup_craycli
 
     shift $((OPTIND-1))
     echo "$@"
@@ -397,6 +400,7 @@ function cfs_update_git {
     local FILE="$1"
     local LAYER="$2"
     local CONFIG="$3"
+    setup_craycli
 
 
     get_git_password

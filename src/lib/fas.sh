@@ -51,6 +51,7 @@ function fas_check_firmware {
         echo "USAGE: $0 fas check [component]"
         exit 2
     fi
+    setup_craycli
 
     if [[ ! -f "$FAS_FILE" ]]; then
         die "Error component '$FAS_COMPONENT' no check action found!"
@@ -93,6 +94,7 @@ function fas_flash_firmware {
     if [[ ! -f "$FAS_FILE" ]]; then
         die "Error component '$FAS_COMPONENT' no flash action found!"
     fi
+    setup_craycli
 
     echo "!!!!!! WARNING !!!!!!"
     echo "If you will be flashing multiple things, be sure to flash them in the below precidence order!"

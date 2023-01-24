@@ -193,6 +193,7 @@ function bos_clone {
     local SRC="$1"
     local DEST="$2"
     local TEMPFILE
+    setup_craycli
 
     if [[ -z "$SRC" || -z "$DEST" ]]; then
         echo "USAGE: $0 bos clone [src bos template] [dest bos template]" 1>&2
@@ -217,6 +218,7 @@ function bos_update_template {
     local TEMPLATE="$1"
     local KEY="$2"
     local VALUE="$3"
+    setup_craycli
 
     set -e
     bos_describe "$TEMPLATE" > "$BOS_CONFIG_DIR/$TEMPLATE.json"
@@ -232,6 +234,7 @@ function bos_update_template {
 # Edit the given bos template file with an editor
 function bos_edit {
     local CONFIG="$1"
+    setup_craycli
 
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 bos edit [bos template]" 1>&2
@@ -277,6 +280,7 @@ function bos_action {
         echo "USAGE: $0 bos $ACTION [template] [target nodes or groups]" 1>&2
         exit 1
     fi
+    setup_craycli
 
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING

@@ -171,6 +171,7 @@ function cfs_job_log {
         exit 1
     fi
     cfs_job_exit_if_not_valid "$CFS"
+    setup_craycli
 
     set -e
     cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json

@@ -123,6 +123,7 @@ function power_action {
         TARGET=( $RETURN )
     fi
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
+    setup_craycli
 
     if [[ "$YES" == 0 ]]; then
         prompt_yn "Are you sure you want to power $ACTION ${#TARGET[@]} nodes?" || exit 1

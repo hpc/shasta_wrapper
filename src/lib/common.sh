@@ -215,7 +215,9 @@ function refresh_node_conversions_data {
 # Send a query request to the api server
 function rest_api_query {
     local API="$1"
-    local RAW=$(curl -w '\nhttp_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    get_kube_token
+
+    local RAW=$(curl -w '\nhttp_code: %{http_code}\n' -s -k -H "$CRAY_AUTH_HEADER" "https://api-gw-service-nmn.local/apis/$API")
     local OUTPUT=$(echo "$RAW" | head -n -1)
     local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
     echo "$OUTPUT"
@@ -227,7 +229,9 @@ function rest_api_query {
 # Send a delete request to the api server
 function rest_api_delete {
     local API="$1"
-    local RAW=$(curl -X DELETE -w '\nhttp_code: %{http_code}\n' -s -k -H "Authorization: Bearer ${TOKEN}" "https://api-gw-service-nmn.local/apis/$API")
+    get_kube_token
+
+    local RAW=$(curl -X DELETE -w '\nhttp_code: %{http_code}\n' -s -k -H "$CRAY_AUTH_HEADER" "https://api-gw-service-nmn.local/apis/$API")
     local OUTPUT=$(echo "$RAW" | head -n -1)
     local HTTP_CODE=$(echo "$RAW" | tail -n 1 | sed 's/http_code: //g')
     echo "$OUTPUT"
@@ -240,9 +244,11 @@ function rest_api_delete {
 function rest_api_patch {
     local API="$1"
     local DATA="$2"
+    get_kube_token
+
     local RAW=$(curl -w '\nhttp_code: %{http_code}\n' \
       -s -k \
-      -H "Authorization: Bearer ${TOKEN}" \
+      -H "$CRAY_AUTH_HEADER" \
       -X PATCH \
       -d "$DATA" \
       -H "Content-Type: application/json" \
@@ -531,4 +537,45 @@ function cluster_validate {
         fi
         echo "ok"
     done
+}
+
+function get_kube_token {
+    if [[ -n "$CRAY_ACCESS_TOKEN_RAW" && -n "$CRAY_AUTH_HEADER" ]]; then
+        return
+    fi
+    local CLIENT_SECRET ACCESS_TOKEN
+
+    CLIENT_SECRET=$(kubectl get secrets admin-client-auth -o jsonpath='{.data.client-secret}' | base64 -d)
+    if [[ -z "$CLIENT_SECRET" ]]; then
+	echo "Failed to get client secret from admin-client-auth kubernetes secret" >2
+	die "See 'kubectl get secrets admin-client-auth -o jsonpath='{.data.client-secret}'"
+    fi
+
+    export CRAY_ACCESS_TOKEN_RAW=$(curl -s -d grant_type=client_credentials -d client_id=admin-client -d client_secret=$CLIENT_SECRET \
+	https://api-gw-service-nmn.local/keycloak/realms/shasta/protocol/openid-connect/token)
+
+    if [[ -z "$CRAY_ACCESS_TOKEN_RAW" ]]; then
+	echo "Failed to get access token!"
+	die "See 'curl -s -d grant_type=client_credentials -d client_id=admin-client -d client_secret=$CLIENT_SECRET https://api-gw-service-nmn.local/keycloak/realms/shasta/protocol/openid-connect/token'"
+    fi
+
+    ACCESS_TOKEN=$(echo "$CRAY_ACCESS_TOKEN_RAW" | jq -r .access_token)
+
+    if [[ -z "$ACCESS_TOKEN"  ]]; then
+        die "Failed to get access token from raw output. Likely invalid output from: 'curl -s -d grant_type=client_credentials -d client_id=admin-client -d client_secret=$CLIENT_SECRET https://api-gw-service-nmn.local/keycloak/realms/shasta/protocol/openid-connect/token'"
+    fi
+    export CRAY_AUTH_HEADER="Authorization: Bearer $ACCESS_TOKEN"
+
+}
+
+function setup_craycli {
+    get_kube_token
+    local CRAY_CLI_TOKEN_DIR="$HOME/.config/cray"
+    local CRAY_CLI_TOKEN_FILE="$CRAY_CLI_TOKEN_DIR/tokens"
+    if [[ ! -f "$CRAY_CLI_TOKEN_FILE" ]]; then
+        return
+    fi
+
+    echo "$CRAY_ACCESS_TOKEN_RAW" > $CRAY_CLI_TOKEN_FILE
+}
 

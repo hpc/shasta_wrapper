@@ -101,6 +101,7 @@ function recipe_delete {
         echo "usage: $0 recipe delete <recipe id>"
         exit 1
     fi
+    setup_craycli
     verbose_cmd cray ims recipes delete --format json "$RECIPE"
 }
 
@@ -117,6 +118,7 @@ function recipe_get {
         exit 1
     fi
     refresh_recipes
+    setup_craycli
 
     RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"$RECIPE_ID\")")
     if [[ -z "$RECIPE" ]]; then
@@ -144,6 +146,7 @@ function recipe_clone {
         exit 1
     fi
     refresh_recipes
+    setup_craycli
 
     set -e
     echo "# cray ims recipes list --format json | jq \".[] | select(.id == \\\"$RECIPE_ID\\\")\""
@@ -199,6 +202,7 @@ function recipe_create {
         echo "Usage: $0 recipe create [recipe name] [tarball containing recipe data]"
 	exit 1
     fi
+    setup_craycli
 
 
     NEW_RECIPE_ID=$(cray ims recipes create --name "$NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json | jq '.id' | sed 's/"//g')

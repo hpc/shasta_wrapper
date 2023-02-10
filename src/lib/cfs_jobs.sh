@@ -220,15 +220,7 @@ function cfs_job_logwatch {
         sed 's|\\"}"||g' | \
         sed 's/,//g') )
 
-    CONTAIN=( $(kubectl get pods $POD_ID -n services -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:containers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
+    CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json | jq -r .spec.containers[].name | grep ansible ))
 
     # init container logs
     # TODO: This method has an issue where logs will only be shown if the init
@@ -265,3 +257,4 @@ function cfs_job_logwatch {
         fi
     done
 }
+

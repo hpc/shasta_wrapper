@@ -177,25 +177,27 @@ function group_action {
 ## refresh_ansible_groups
 # Get the ansible groups from /etc/ansible/hosts
 function refresh_ansible_groups {
-    local ANSIBLE_LINES LINE SPLIT GROUP
+    local ANSIBLE_LINES LINE SPLIT GROUP NODE_GROUPS
     cluster_defaults_config
+    hsm_get_node_state
 
     if [[ -n "${!NODE2GROUP[@]}" ]]; then
         return
     fi
 
-    IFS=$'\n'
-    ANSIBLE_LINES=( $(cat /etc/ansible/hosts | grep -v 'hosts:$' | grep -v 'children:$' | grep -v 'all:$' | sed 's/: {}//g' | sed 's/ //g') )
-    IFS=$' \t\n'
+    #IFS=$'\n'
+    #ANSIBLE_LINES=( $(cat /etc/ansible/hosts | grep -v 'hosts:$' | grep -v 'children:$' | grep -v 'all:$' | sed 's/: {}//g' | sed 's/ //g') )
+    #IFS=$' \t\n'
+
 
     GROUP=""
-    for LINE in "${ANSIBLE_LINES[@]}"; do
-        if [[ ${LINE: -1:1} == ':' && CUR_IMAGE_CONFIG[$${LINE:0:${#LINE}-1] ]]; then
-            GROUP="${LINE:0:${#LINE}-1}"
-        else
-            NODE2GROUP[$LINE]+="$GROUP "
-            GROUP2NODES[$GROUP]+="$LINE "
-        fi
+    for XNAME in "${!HSM_NODE_GROUP[@]}"; do
+	NODE_GROUPS=( $(echo "${HSM_NODE_GROUP[$XNAME]}" ) )
+        
+	for GROUP in "${NODE_GROUPS[@]}"; do
+            NODE2GROUP[$XNAME]+="$GROUP "
+            GROUP2NODES[$GROUP]+="$XNAME "
+	done
     done
 }
 
@@ -324,3 +326,4 @@ function group_summary {
         echo ""
     done
 }
+

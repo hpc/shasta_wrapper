@@ -195,7 +195,6 @@ function refresh_ansible_groups {
 	NODE_GROUPS=( $(echo "${HSM_NODE_GROUP[$XNAME]}" ) )
         
 	for GROUP in "${NODE_GROUPS[@]}"; do
-            NODE2GROUP[$XNAME]+="$GROUP "
             GROUP2NODES[$GROUP]+="$XNAME "
 	done
     done

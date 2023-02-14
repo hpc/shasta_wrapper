@@ -25,7 +25,7 @@ function hsm_get_node_state {
 
 ## hsm_refresh_node_state
 function hsm_refresh_node_state {
-    local LINE XNAME NID ENABLED STATE ROLE SUBROLE
+    local LINE XNAME NID ENABLED STATE
     IFS=$'\n'
     local LINES=( $(rest_api_query smd/hsm/v2/State/Components |  jq '.[][] | select(.Type == "Node")' | jq -r '. | "\(.ID) \(.NID) \(.Enabled) \(.State) \(.Role) \(.SubRole)"') )
     IFS=$' \t\n'
@@ -50,6 +50,7 @@ function hsm_refresh_node_state {
 	else
             HSM_NODE_GROUP[$XNAME]="$ROLE ${ROLE}_${SUBROLE}"
 	fi
+        NODE2GROUP[$XNAME]="${HSM_NODE_GROUP[$XNAME]}"
     done
 }
 

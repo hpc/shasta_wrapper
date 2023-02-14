@@ -137,7 +137,7 @@ function bos_list {
 
     # Grab the bos config names
     BOS_LINES=( $(echo "$BOS_RAW" | jq '.[].name' | sed 's/"//g') )
-    if [[ -z "$BOS_LINES" ]]; then
+    if [[ -z "$BOS_RAW" ]]; then
         die "Error unable to get bos information"
     fi
 

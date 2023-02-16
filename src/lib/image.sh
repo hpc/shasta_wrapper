@@ -195,10 +195,9 @@ function image_build {
     fi
     cluster_defaults_config
 
-
-    EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
-    if [[ -z "$EX_HOST" ]]; then
-        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
+    refresh_ansible_groups
+    if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
+        die "'$GROUP_NAME' doesn't appear to be a valid group name."
     fi
 
     cfs_describe "$CONFIG_NAME" > /dev/null 2>&1
@@ -463,12 +462,12 @@ function image_configure {
         exit 1
     fi
     setup_craycli
+    refresh_ansible_groups
 
     ## Validate group name
-    EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
-    if [[ -z "$EX_HOST" ]]; then
-        echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
-        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
+    if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
+        echo "'$GROUP_NAME' doesn't appear to be a valid group name."
+        die "'$GROUP_NAME' doesn't appear to be a valid group name."
     fi
     echo "$GROUP_NAME: ${IMAGE_GROUPS[$GROUP_NAME]}"
     if [[ -n "${IMAGE_GROUPS[$GROUP_NAME]}" ]]; then
@@ -594,4 +593,3 @@ function image_defaults {
     done
 }
 
-## cluster_validate

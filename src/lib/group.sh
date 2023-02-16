@@ -181,7 +181,7 @@ function refresh_ansible_groups {
     cluster_defaults_config
     hsm_get_node_state
 
-    if [[ -n "${!GROUP2NODE[@]}" ]]; then
+    if [[ -n "${!GROUP2NODES[@]}" ]]; then
         return
     fi
 

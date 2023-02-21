@@ -46,7 +46,7 @@ function cfs_job_help {
     echo    "USAGE: $0 cfs job [action]"
     echo    "DESC: control jobs launched by cfs"
     echo    "ACTIONS:"
-    echo -e "\tdelete [job] : delete the cfs"
+    echo -e "\tdelete <--complete|--all> [job] : delete the cfs"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist <-l>: list all ansible configurations"
     echo -e "\tlog [job] : show logs for the given cfs job (-t to get timestamps from k8s logging)"

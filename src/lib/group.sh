@@ -261,13 +261,13 @@ function group_build_images {
     fi
     local GROUP_LIST=( "$@" )
     local MAP_TARGET
+    cluster_defaults_config
 
     if [[ -z "${GROUP_LIST[@]}" ]]; then
 	GROUP_LIST=( "${!BOS_DEFAULT[@]}" )
     fi
 
     echo "## Validating current setup before trying to build anything... (Should take a few seconds)"
-    cluster_defaults_config
     cluster_validate
     echo "Done"
     echo

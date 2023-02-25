@@ -28,8 +28,14 @@ declare -A CONVERT2NMN
 ## die
 # exit with return code 2 and pring the error in red
 function die {
-    echo -e "${COLOR_RED}$@${COLOR_RESET}" 1>&2
+    error "$@"
     exit 2
+}
+
+## error
+# Print the string to stderr and red
+function error {
+    echo -e "${COLOR_RED}$@${COLOR_RESET}" 1>&2
 }
 
 ## tmpdir

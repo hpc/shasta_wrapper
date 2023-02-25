@@ -86,11 +86,16 @@ function cfs_help {
 ## cfs_list
 # List out the given cfs job configurations
 function cfs_list {
-    local CONFIG CONFIGS group
+    local CONFIG CONFIGS RAW_CONFIGS group
     cluster_defaults_config
 
     # Get all config data
-    CONFIGS=( $(rest_api_query "cfs/v2/configurations" | jq '.[].name' | sed 's/"//g'))
+    RAW_CONFIGS=$(rest_api_query "cfs/v2/configurations")
+    if [[ -z "$CONFIGS" || "$?" -ne 0 ]]; then
+        error "Failed to get cfs information: $RAW_CONFIGS"
+	return 1
+    fi
+    CONFIGS=( $(echo "$RAW_CONFIGS" | jq -r '.[].name') )
     echo "${COLOR_BOLD}NAME(default cfs for)${COLOR_RESET}"
 
     # Any cfs configs that are set as a default for an ansible group should
@@ -443,3 +448,4 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
+

@@ -80,14 +80,18 @@ function image_help {
 ## refresh_images
 # Get the image data from ims
 function refresh_images {
-    local RAW image
-    echo "# cray ims images list --format json | jq '.[] | \"\\(.created)   \\(.id)   \\(.name)\"' | sed 's/\"//g' | sort"
+    local RAW LIST image
 
+    RAW=$(rest_api_query "ims/images")
+    if [[ $? -ne 0 ]]; then
+	 error "Error getting image information: $RAW"  
+	 return 1
+    fi
     IFS=$'\n'
-    RAW=( $(rest_api_query "ims/images" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
+    LIST=( $(echo "$RAW" | jq -r '.[] | "\(.id) \(.created) \(.name)"') )
     IFS=$' \t\n'
 
-    for image in "${RAW[@]}"; do
+    for image in "${LIST[@]}"; do
         SPLIT=( $image )
         id="${SPLIT[0]}"
         created="${SPLIT[1]}"
@@ -568,7 +572,7 @@ function image_defaults {
         fi
 
         IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
-        if [[ -z "$IMAGE_RAW" ]]; then
+        if [[ -z "$IMAGE_RAW" && $? -eq 0 ]]; then
             echo "Warning: Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
             CUR_IMAGE_NAME[$group]="Invalid"
             CUR_IMAGE_ID[$group]="Invalid"

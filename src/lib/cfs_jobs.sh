@@ -62,6 +62,11 @@ function refresh_cfs_jobs_raw {
         return
     fi
     CFS_JOBS_RAW=$(rest_api_query "cfs/v2/sessions")
+    if [[ -z "$CFS_JOBS_RAW" || $? -ne 0 ]]; then
+        error "Failed to get cfs information: $CFS_JOBS_RAW"
+	CFS_JOBS_RAW=""
+	return 1
+    fi
 
     if [[ -z "${CFS_JOBS_RAW[@]}" ]]; then
         die "failed to get cfs data"

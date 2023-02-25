@@ -386,25 +386,11 @@ function image_logwatch {
 
     # Get list of init containers
     INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n ims -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
+        jq -r .spec.initContainers[].name) )
 
     # Get list of regular containers
     CONTAIN=( $(kubectl get pods $POD_ID -n ims -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:containers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
+	jq -r .spec.containers[].name) )
 
     # init container logs
     for cont in fetch-recipe wait-for-repos build-ca-rpm; do

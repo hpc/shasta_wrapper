@@ -318,9 +318,6 @@ function node_clear_errors {
         if [[ "${HSM_NODE_ENABLED[$node]}" != "true" ]]; then
             continue
         fi
-        if [[ "${HSM_NODE_STATE[$node]}" != "Ready" ]]; then
-            continue
-        fi
         NODES_STRIPPED+=( $node )
     done
 

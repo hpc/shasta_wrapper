@@ -184,13 +184,13 @@ function cfs_job_log {
     setup_craycli
 
     set -e
-    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json
+    cmd_wait_output 'job' cray cfs sessions describe "$CFS" --format json 2>&1
     JOB=$(cray cfs sessions describe "$CFS" --format json | jq '.status.session.job' | sed 's/"//g')
     if [[ "$JOB" == 'null' ]]; then
         die "Error! got null kubernetes job from cfs. This can indicate an internal failure inside of cfs."
     fi
 
-    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services
+    cmd_wait_output "READY" kubectl get pods -l job-name=$JOB -n services 2>&1
     POD=$(kubectl get pods -l job-name=$JOB -n services| tail -n 1 | awk '{print $1}')
     set +e
 
@@ -211,14 +211,7 @@ function cfs_job_log {
 function cfs_job_logwatch {
     POD_ID=$1
     INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
+        jq -r .spec.initContainers[].name) )
 
     CONTAIN=( $(kubectl get pods "$POD_ID" -n services -o json | jq -r .spec.containers[].name | grep ansible ))
 
@@ -231,7 +224,7 @@ function cfs_job_logwatch {
         echo "#################################################"
         echo "### init container: $cont"
         echo "#################################################"
-        cmd_wait_output "Cloning successful" kubectl logs $TS -n services "$POD_ID" -c "$cont" 2>&1
+        cmd_wait kubectl logs $TS -n services "$POD_ID" -c "$cont" 2>&1
         verbose_cmd kubectl logs $TS -n services -f "$POD_ID" -c $cont 2>&1
     done
 

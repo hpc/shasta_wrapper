@@ -91,7 +91,7 @@ function cfs_list {
 
     # Get all config data
     RAW_CONFIGS=$(rest_api_query "cfs/v2/configurations")
-    if [[ -z "$CONFIGS" || "$?" -ne 0 ]]; then
+    if [[ -z "$RAW_CONFIGS" || "$?" -ne 0 ]]; then
         error "Failed to get cfs information: $RAW_CONFIGS"
 	return 1
     fi

@@ -116,24 +116,24 @@ function node_help {
     echo -e "\tclear_errors [nodes] : Resets the node error counters to 0."
     echo -e "\tdescribe : (same as show)"
     echo -e "\tdisable [node] : Disable the node for hsm and cfs. Stops the node from being booted by bos, and cfs from running on it"
-    echo -e "\tenable [node] : Enable the node for hsm and cfs. Allows the node from being booted by bos, and cfs to running on it"
-    echo -e "\tlist : list all available node groups"
+    echo -e "\tenable <options> [node] : Enable the node for hsm and cfs (or just cfs with the -c option). Allows the node from being booted by bos, and cfs to running on it. "
+    echo -e "\tlist : List all available node groups"
     echo -e "\tpower_on <options> [nodes]: Power on given nodes"
     echo -e "\tpower_off <options> [nodes]: Power off given nodes"
-    echo -e "\tpower_reset [nodes]: reset node power"
+    echo -e "\tpower_reset [nodes]: Reset node power"
     echo -e "\tpower_status [nodes]: Get node power status"
-    echo -e "\treboot [nodes space seperated] : Reboots the given group into it's default bos template."
-    echo -e "\tresetdb : Clears the current database on what nodes are available and recomputes it. Usefull afer adding or removing nodes from a system(ie adding a cabinet)"
+    echo -e "\treboot [nodes space-separated] : Reboots the given group into its default bos template."
+    echo -e "\tresetdb : Clears the current database on what nodes are available and recomputes it. Useful after adding or removing nodes from a system(ie adding a cabinet)"
     echo -e "\tshow [node] : show details on a specific node group"
     echo -e "\tstatus : Show general hsm and cfs state of all nodes (slimmed down and faster sat status)"
-    echo -e "\tshutdown [nodes] : shutdown all nodes in the group"
+    echo -e "\tshutdown [nodes] : Shutdown all nodes in the group"
     echo -e "\tunconf : List all unconfigured nodes"
 
     exit 1
 }
 
 ## node_2xname
-# Attempt to convert a given node name to it's xname
+# Attempt to convert a given node name to its xname
 function node_2xname {
     if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2xname [node list]"
@@ -144,7 +144,7 @@ function node_2xname {
 }
 
 ## node_2nid
-# Attempt to convert a given node name to it's nid number
+# Attempt to convert a given node name to its nid number
 function node_2nid {
     if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2nid [node list]"
@@ -155,7 +155,7 @@ function node_2nid {
 }
 
 ## node_2fullnid
-# Attempt to convert a given node name to it's fullnid
+# Attempt to convert a given node name to its fullnid
 function node_2fullnid {
     if [[ -z "$@" ]]; then
         echo "USAGE: $0 node 2fullnid [node list]"
@@ -169,7 +169,7 @@ function node_2fullnid {
 # List out all nodes and their associated groups
 function node_list {
     refresh_ansible_groups
-    for GROUP in "${!GROUP2NODES[@]}"; do
+    for GROUP in "${!GROUP2NOD/ES[@]}"; do
         echo "[$GROUP]"
         echo "nodes:               ${GROUP2NODES[$GROUP]}"
         echo
@@ -318,7 +318,7 @@ function node_clear_errors {
 }
 
 ## node_action
-# Perform an action against a list of nodes. THis figures out the correct bos template for the node and send that to bos_action with the node list.
+# Perform an action against a list of nodes. This figures out the correct bos template for the node and send that to bos_action with the node list.
 function node_action {
     local ACTION="$1"
     local NODES GROUP TMP

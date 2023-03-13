@@ -169,7 +169,7 @@ function node_2fullnid {
 # List out all nodes and their associated groups
 function node_list {
     refresh_ansible_groups
-    for GROUP in "${!GROUP2NOD/ES[@]}"; do
+    for GROUP in "${!GROUP2NODES[@]}"; do
         echo "[$GROUP]"
         echo "nodes:               ${GROUP2NODES[$GROUP]}"
         echo

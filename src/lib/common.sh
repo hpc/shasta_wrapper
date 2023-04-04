@@ -346,11 +346,16 @@ function add_node_name {
     get_node_conversions
 
     # Try to figure out it's xname
-    IP=$(getent hosts $NODE | awk '{print $1}')
-    if [[ -z "$IP" ]]; then
+    IPS=$(getent hosts $NODE | awk '{print $1}')
+    if [[ -z "$IPS" ]]; then
         die "Error node '$NODE' is invalid!"
     fi
-    XNAME=$(nslookup "$IP" | awk '{print $4}' | sed 's/\.$//g' |grep  -P '^x\d+c\d+s\d+.*' | head -n 1)
+    for IP in $IPS; do
+        XNAME=$(nslookup "$IP" | awk '{print $4}' | sed 's/\.$//g' |grep  -P '^x\d+c\d+s\d+.*' | head -n 1)
+        if [[ -n "$XNAME" ]]; then
+            break
+	fi
+    done
     if [[  -z "$XNAME" ]]; then
         die "Error node '$NODE' is invalid!"
     fi

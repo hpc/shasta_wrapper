@@ -380,7 +380,7 @@ function node_enable {
     while getopts "c" OPTION; do
         case "OPTION" in 
             c) CFS_ONLY=1;;
-            \?) die 1 "cfs_apply: Invalid option: - $OPTARG"; ; return 1 ;;
+            \?) die 1 "cfs_apply: Invalid option: - $OPTARG"; return 1 ;;
         esac
     done
     shift $((OPTIND-1))

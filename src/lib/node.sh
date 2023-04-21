@@ -375,13 +375,25 @@ function node_action {
 
 
 function node_enable {
+    CFS_ONLY=0
+    OPTIND=1
+    while getopts "c" OPTION; do
+        case "OPTION" in 
+            c) CFS_ONLY=1;;
+            \?) die 1 "cfs_apply: Invalid option: - $OPTARG"; ; return 1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
     local NODES=( $( nid2xname "$@") )
     if [[ -z "$NODES" ]]; then
         echo "USAGE: $0 node enable [nodelist]"
         exit 1
     fi
 
-    hsm_enable_nodes true "${NODES[@]}"
+    if [ $CFS_ONLY -eq "0" ]; then 
+        hsm_enable_nodes true "${NODES[@]}"
+    fi
     cfs_enable_nodes true "${NODES[@]}"
 }
 

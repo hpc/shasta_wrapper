@@ -25,7 +25,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Shasta Wrapper
 
-Simplifies the administration of cray shasta systems.
+Scripting to simplify the administration of HPE Cray EX Systems
 
 ## Building
 ### rpm

@@ -177,25 +177,26 @@ function group_action {
 ## refresh_ansible_groups
 # Get the ansible groups from /etc/ansible/hosts
 function refresh_ansible_groups {
-    local ANSIBLE_LINES LINE SPLIT GROUP
+    local ANSIBLE_LINES LINE SPLIT GROUP NODE_GROUPS
     cluster_defaults_config
+    hsm_get_node_state
 
-    if [[ -n "${!NODE2GROUP[@]}" ]]; then
+    if [[ -n "${!GROUP2NODES[@]}" ]]; then
         return
     fi
 
-    IFS=$'\n'
-    ANSIBLE_LINES=( $(cat /etc/ansible/hosts | grep -v 'hosts:$' | grep -v 'children:$' | grep -v 'all:$' | sed 's/: {}//g' | sed 's/ //g') )
-    IFS=$' \t\n'
+    #IFS=$'\n'
+    #ANSIBLE_LINES=( $(cat /etc/ansible/hosts | grep -v 'hosts:$' | grep -v 'children:$' | grep -v 'all:$' | sed 's/: {}//g' | sed 's/ //g') )
+    #IFS=$' \t\n'
+
 
     GROUP=""
-    for LINE in "${ANSIBLE_LINES[@]}"; do
-        if [[ ${LINE: -1:1} == ':' && CUR_IMAGE_CONFIG[$${LINE:0:${#LINE}-1] ]]; then
-            GROUP="${LINE:0:${#LINE}-1}"
-        else
-            NODE2GROUP[$LINE]+="$GROUP "
-            GROUP2NODES[$GROUP]+="$LINE "
-        fi
+    for XNAME in "${!HSM_NODE_GROUP[@]}"; do
+	NODE_GROUPS=( $(echo "${HSM_NODE_GROUP[$XNAME]}" ) )
+        
+	for GROUP in "${NODE_GROUPS[@]}"; do
+            GROUP2NODES[$GROUP]+="$XNAME "
+	done
     done
 }
 
@@ -258,21 +259,20 @@ function group_build_images {
 
         shift
     fi
-    local GROUP="$1"
+    local GROUP_LIST=( "$@" )
     local MAP_TARGET
+    cluster_defaults_config
+
+    if [[ -z "${GROUP_LIST[@]}" ]]; then
+	GROUP_LIST=( "${!BOS_DEFAULT[@]}" )
+    fi
 
     echo "## Validating current setup before trying to build anything... (Should take a few seconds)"
-    cluster_defaults_config
     cluster_validate
     echo "Done"
     echo
 
-
-    echo "## Launching Image Build(s)"
-    if [[ -n "$GROUP" ]]; then
-        if [[ -z "${RECIPE_DEFAULT[$GROUP]}" ]]; then
-            die "Group '$GROUP' is not valid."
-        fi
+    for GROUP in "${GROUP_LIST[@]}"; do
         if [[ "$MAP" -eq "0" ]]; then
             MAP_TARGET="${BOS_DEFAULT[$GROUP]}"
         fi
@@ -282,19 +282,7 @@ function group_build_images {
           "${CUR_IMAGE_CONFIG[$GROUP]}" \
           "${IMAGE_DEFAULT_NAME[$GROUP]}" \
           "$MAP_TARGET" &
-    else
-        for GROUP in "${!BOS_DEFAULT[@]}"; do
-            if [[ "$MAP" -eq "0" ]]; then
-                MAP_TARGET="${BOS_DEFAULT[$GROUP]}"
-            fi
-            image_build \
-              "${RECIPE_DEFAULT[$GROUP]}" \
-              "$GROUP" \
-              "${CUR_IMAGE_CONFIG[$GROUP]}" \
-              "${IMAGE_DEFAULT_NAME[$GROUP]}" \
-              "$MAP_TARGET" &
-        done
-    fi
+    done
     echo "See detailed logs in: $IMAGE_LOGDIR/"
     echo -n "Images started building at: "
     date
@@ -302,7 +290,6 @@ function group_build_images {
     wait $(jobs -p)
     echo -n "Images stopped building at: "
     date
-
 }
 
 ## group_summary
@@ -324,3 +311,4 @@ function group_summary {
         echo ""
     done
 }
+

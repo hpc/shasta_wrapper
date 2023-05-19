@@ -14,6 +14,7 @@
 
 declare -A HSM_NODE_ENABLED
 declare -A HSM_NODE_STATE
+declare -A HSM_NODE_GROUP
 
 ## hsm_get_node_state
 function hsm_get_node_state {
@@ -26,7 +27,7 @@ function hsm_get_node_state {
 function hsm_refresh_node_state {
     local LINE XNAME NID ENABLED STATE
     IFS=$'\n'
-    local LINES=( $(rest_api_query smd/hsm/v2/State/Components | jq -r '.[][] | "\(.ID) \(.NID) \(.Enabled) \(.State)"') )
+    local LINES=( $(rest_api_query smd/hsm/v2/State/Components |  jq '.[][] | select(.Type == "Node")' | jq -r '. | "\(.ID) \(.NID) \(.Enabled) \(.State) \(.Role) \(.SubRole)"') )
     IFS=$' \t\n'
     for LINE in "${LINES[@]}"; do
         SPLIT=( $LINE )
@@ -34,6 +35,8 @@ function hsm_refresh_node_state {
         NID="${SPLIT[1]}"
         ENABLED="${SPLIT[2]}"
         STATE="${SPLIT[3]}"
+        ROLE="${SPLIT[4]}"
+        SUBROLE="${SPLIT[5]}"
 
         if [[ "$NID" != 'null' ]]; then
             CONVERT2NID[$XNAME]="$NID"
@@ -41,6 +44,13 @@ function hsm_refresh_node_state {
         fi
         HSM_NODE_ENABLED[$XNAME]="$ENABLED"
         HSM_NODE_STATE[$XNAME]="$STATE"
+
+	if [[ "$SUBROLE" == "null" ]]; then
+            HSM_NODE_GROUP[$XNAME]="$ROLE"
+	else
+            HSM_NODE_GROUP[$XNAME]="$ROLE ${ROLE}_${SUBROLE}"
+	fi
+        NODE2GROUP[$XNAME]="${HSM_NODE_GROUP[$XNAME]}"
     done
 }
 
@@ -74,3 +84,4 @@ function hsm_enable_nodes {
 
     #wait_for_background_tasks "Updating hsm state" "${#NODES[@]}"
 }
+

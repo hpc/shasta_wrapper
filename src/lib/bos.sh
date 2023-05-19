@@ -94,8 +94,9 @@ function refresh_bos_raw {
         return 0
     fi
     BOS_RAW=$(rest_api_query "bos/v1/sessiontemplate")
-    if [[ -z "$BOS_RAW" ]]; then
-       echo "Error retrieving bos data... Some information may be unavailable"
+    if [[ -z "$BOS_RAW" || $? -ne 0 ]]; then
+       error "${COLOR_RED}Error retrieving bos data: $BOS_RAW"
+       BOS_RAW=""
        return 1
     fi
     return 0
@@ -137,7 +138,7 @@ function bos_list {
 
     # Grab the bos config names
     BOS_LINES=( $(echo "$BOS_RAW" | jq '.[].name' | sed 's/"//g') )
-    if [[ -z "$BOS_LINES" ]]; then
+    if [[ -z "$BOS_RAW" ]]; then
         die "Error unable to get bos information"
     fi
 
@@ -324,3 +325,4 @@ function bos_action {
     echo "Boot Logs: '$LOGFILE'"
     echo
 }
+

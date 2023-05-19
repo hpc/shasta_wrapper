@@ -48,7 +48,7 @@ function bos_job_help {
     echo    "USAGE: $0 bos job [action]"
     echo    "DESC: control jobs launched by bos"
     echo    "ACTIONS:"
-    echo -e "\tdelete <--all|--complete> <job> : delete all, completed or specified bos jobs"
+    echo -e "\tdelete <--all|--complete> [job] : delete all, completed or specified bos jobs"
     echo -e "\tdescribe [job] : (same as show)"
     echo -e "\tlist <-s> : list bos jobs"
     echo -e "\tshow [job] : shows all info on a given bos"
@@ -59,16 +59,18 @@ function bos_job_help {
 ## refresh_bos_jobs
 # Refresh current job info from bos
 function refresh_bos_jobs {
+    local BOS_JOBS_RAW
     if [[ -n "${BOS_JOBS[0]}" && "$1" != "--force" ]]; then
         return
     fi
     local RET=1
-    while [[ "$RET" -ne 0 ]]; do
-        BOS_JOBS=( $(rest_api_query "bos/v1/session" |\
-            jq '.[]' |\
-            sed 's/"//g') )
-        RET=$?
-    done
+    BOS_JOBS_RAW=$(rest_api_query "bos/v1/session")
+    if [[ -z "$BOS_JOBS_RAW" || $? -ne 0 ]]; then	
+       error "Error retrieving bos data: $BOS_JOBS_RAW"
+       return 1
+    fi
+    BOS_JOBS=( $(echo "$BOS_JOBS_RAW" |\
+        jq -r '.[]' ) )
 }
 
 ## bos_job_list
@@ -209,3 +211,4 @@ function bos_job_log {
 
     kubectl logs -n services "$POD" -c boa -f
 }
+

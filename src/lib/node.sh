@@ -212,7 +212,7 @@ function node_status {
         CFS_NODE_STATE[$XNAME]="$STATE"
     done
     printf "${COLOR_BOLD}%20s %13s %11s %13s %13s %20s${COLOR_RESET}\n" "NODE" "HSM_ENABLED" "HSM_STATE" "CFS_ENABLED" "CFS_STATE" "GROUPS"
-    for NODE in "${NODES[@]}"; do
+    for NODE in "${!HSM_NODE_ENABLED[@]}"; do
         HSM_ENABLED="${HSM_NODE_ENABLED[$NODE]}"
         HSM_STATE="${HSM_NODE_STATE[$NODE]}"
         CFS_ENABLED="${CFS_NODE_ENABLED[$NODE]}"
@@ -318,9 +318,6 @@ function node_clear_errors {
         if [[ "${HSM_NODE_ENABLED[$node]}" != "true" ]]; then
             continue
         fi
-        if [[ "${HSM_NODE_STATE[$node]}" != "Ready" ]]; then
-            continue
-        fi
         NODES_STRIPPED+=( $node )
     done
 
@@ -419,3 +416,4 @@ function node_disable {
     hsm_enable_nodes false "${NODES[@]}"
     cfs_enable_nodes false "${NODES[@]}"
 }
+

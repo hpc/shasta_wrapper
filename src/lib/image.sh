@@ -80,14 +80,18 @@ function image_help {
 ## refresh_images
 # Get the image data from ims
 function refresh_images {
-    local RAW image
-    echo "# cray ims images list --format json | jq '.[] | \"\\(.created)   \\(.id)   \\(.name)\"' | sed 's/\"//g' | sort"
+    local RAW LIST image
 
+    RAW=$(rest_api_query "ims/images")
+    if [[ $? -ne 0 ]]; then
+	 error "Error getting image information: $RAW"  
+	 return 1
+    fi
     IFS=$'\n'
-    RAW=( $(rest_api_query "ims/images" | jq '.[] | "\(.id) \(.created) \(.name)"' | sed 's/"//g') )
+    LIST=( $(echo "$RAW" | jq -r '.[] | "\(.id) \(.created) \(.name)"') )
     IFS=$' \t\n'
 
-    for image in "${RAW[@]}"; do
+    for image in "${LIST[@]}"; do
         SPLIT=( $image )
         id="${SPLIT[0]}"
         created="${SPLIT[1]}"
@@ -195,10 +199,9 @@ function image_build {
     fi
     cluster_defaults_config
 
-
-    EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
-    if [[ -z "$EX_HOST" ]]; then
-        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
+    refresh_ansible_groups
+    if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
+        die "'$GROUP_NAME' doesn't appear to be a valid group name."
     fi
 
     cfs_describe "$CONFIG_NAME" > /dev/null 2>&1
@@ -387,25 +390,11 @@ function image_logwatch {
 
     # Get list of init containers
     INIT_CONTAIN=( $(kubectl get pods "$POD_ID" -n ims -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:initContainers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
+        jq -r .spec.initContainers[].name) )
 
     # Get list of regular containers
     CONTAIN=( $(kubectl get pods $POD_ID -n ims -o json |\
-        jq '.metadata.managedFields' |\
-        jq '.[].fieldsV1."f:spec"."f:containers"' |\
-        grep -v null |\
-        jq 'keys' |\
-        grep name |\
-        sed 's|  "k:{\\"name\\":\\"||g' |\
-        sed 's|\\"}"||g' | \
-        sed 's/,//g') )
+	jq -r .spec.containers[].name) )
 
     # init container logs
     for cont in fetch-recipe wait-for-repos build-ca-rpm; do
@@ -463,12 +452,12 @@ function image_configure {
         exit 1
     fi
     setup_craycli
+    refresh_ansible_groups
 
     ## Validate group name
-    EX_HOST=$(grep -A 2 $GROUP_NAME /etc/ansible/hosts | grep '{}' | awk '{print $1}' | sed 's/://g')
-    if [[ -z "$EX_HOST" ]]; then
-        echo "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
-        die "'$GROUP_NAME' doesn't appear to be a valid group name. Can't locate it in /etc/ansible/hosts"
+    if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
+        echo "'$GROUP_NAME' doesn't appear to be a valid group name."
+        die "'$GROUP_NAME' doesn't appear to be a valid group name."
     fi
     echo "$GROUP_NAME: ${IMAGE_GROUPS[$GROUP_NAME]}"
     if [[ -n "${IMAGE_GROUPS[$GROUP_NAME]}" ]]; then
@@ -583,7 +572,7 @@ function image_defaults {
         fi
 
         IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")
-        if [[ -z "$IMAGE_RAW" ]]; then
+        if [[ -z "$IMAGE_RAW" && $? -eq 0 ]]; then
             echo "Warning: Image etag '${CUR_IMAGE_ETAG[$group]}' for bos sessiontemplate '${BOS_DEFAULT[$group]}' does not exist." 1>&2
             CUR_IMAGE_NAME[$group]="Invalid"
             CUR_IMAGE_ID[$group]="Invalid"
@@ -594,4 +583,3 @@ function image_defaults {
     done
 }
 
-## cluster_validate

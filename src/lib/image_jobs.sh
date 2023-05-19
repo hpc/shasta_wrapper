@@ -62,13 +62,10 @@ function refresh_image_jobs_raw {
         return
     fi
     IMS_JOBS_RAW=$(rest_api_query "ims/jobs")
-    while [[ -z "$IMS_JOBS_RAW" ]]; do
-	sleep 2
-        IMS_JOBS_RAW=$(rest_api_query "ims/jobs")
-    done
-
-    if [[ -z "$IMS_JOBS_RAW" ]]; then
-        die "failed to get image data"
+    if [[ -z "$IMS_JOBS_RAW" || $? -ne 0 ]]; then
+	error "Error getting ims data: $IMS_JOBS_RAW"
+	IMS_JOBS_RAW=""
+	return 1
     fi
 }
 
@@ -168,3 +165,4 @@ function image_job_log {
 
     image_logwatch "$JOB_ID"
 }
+

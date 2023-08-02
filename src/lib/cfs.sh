@@ -102,8 +102,13 @@ function cfs_list {
     # have the ansible group name in paretheses and bolded.
     for CONFIG in "${CONFIGS[@]}"; do
         echo -n "$CONFIG"
-        for group in "${!CUR_IMAGE_CONFIG[@]}"; do
-            if [[ "${CUR_IMAGE_CONFIG[$group]}" == "$CONFIG" ]]; then
+        for group in "${!CONFIG_IMAGE_DEFAULT[@]}"; do
+            if [[ "${CONFIG_IMAGE_DEFAULT[$group]}" == "$CONFIG" ]]; then
+                echo -n "$COLOR_BOLD(img:$group)$COLOR_RESET"
+            fi
+        done
+        for group in "${!CONFIG_DEFAULT[@]}"; do
+            if [[ "${CONFIG_DEFAULT[$group]}" == "$CONFIG" ]]; then
                 echo -n "$COLOR_BOLD($group)$COLOR_RESET"
             fi
         done
@@ -354,15 +359,18 @@ function cfs_update {
         prompt_yn "No arguments given, update all default cfs configs?" || exit 0
         cluster_defaults_config
         CONFIGS=( )
-        for group in "${!CUR_IMAGE_CONFIG[@]}"; do
-             CONFIGS+=( "${CUR_IMAGE_CONFIG[$group]}" )
+        for group in "${!CONFIG_IMAGE_DEFAULT[@]}" "${!CONFIG_DEFAULT[@]}"; do
+             CONFIGS+=( "${CONFIG_IMAGE_DEFAULT[$group]}" )
+             CONFIGS+=( "${CONFIG_DEFAULT[$group]}" )
         done
+        # dedup
+        CONFIGS=( $(echo "${CONFIGS[@]}" | sed 's/ /\n/g' | sort -u) )
     fi
 
     for CONFIG in "${CONFIGS[@]}"; do
         local FILE="$CONFIG_DIR/$CONFIG.json"
         if [[ -z "$CONFIG" ]]; then
-            echo "USAGE: $0 cfs edit [cfs]" 1>&2
+            echo "USAGE: $0 cfs update [cfs]" 1>&2
             exit 1
         fi
 	echo "#### $CONFIG"
@@ -448,4 +456,3 @@ function cfs_update_git {
     rm -rf "$TMPDIR/$LAYER"
     set +e
 }
-

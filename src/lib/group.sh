@@ -193,7 +193,7 @@ function refresh_ansible_groups {
     GROUP=""
     for XNAME in "${!HSM_NODE_GROUP[@]}"; do
 	NODE_GROUPS=( $(echo "${HSM_NODE_GROUP[$XNAME]}" ) )
-        
+
 	for GROUP in "${NODE_GROUPS[@]}"; do
             GROUP2NODES[$GROUP]+="$XNAME "
 	done
@@ -224,7 +224,8 @@ function group_describe {
     if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
 
 
-        CONFIG="${CUR_IMAGE_CONFIG[$GROUP]}"
+        CONFIG="${CONFIG_DEFAULT[$GROUP]}"
+        IMG_CONFIG="${CONFIG_IMAGE_DEFAULT[$GROUP]}"
         IMAGE_ETAG="${CUR_IMAGE_ETAG[$GROUP]}"
 
         IMAGE_NAME="${CUR_IMAGE_NAME[$GROUP]}"
@@ -236,6 +237,7 @@ function group_describe {
          echo "image_name:          $IMAGE_NAME"
          echo "image_id:            $IMAGE_ID"
          echo "config:              $CONFIG"
+         echo "config img:          $CONFIG_IMG"
          if [[ "$NO_NODES" -eq "0" ]]; then
              echo "nodes:               ${GROUP2NODES[$GROUP]}"
          fi
@@ -264,7 +266,7 @@ function group_build_images {
     cluster_defaults_config
 
     if [[ -z "${GROUP_LIST[@]}" ]]; then
-	GROUP_LIST=( "${!BOS_DEFAULT[@]}" )
+	GROUP_LIST=( $(echo "${!BOS_DEFAULT[@]}" "${!IMAGE_DEFAULT[@]}" | sort -u ) )
     fi
 
     echo "## Validating current setup before trying to build anything... (Should take a few seconds)"
@@ -276,12 +278,20 @@ function group_build_images {
         if [[ "$MAP" -eq "0" ]]; then
             MAP_TARGET="${BOS_DEFAULT[$GROUP]}"
         fi
-        image_build \
-          "${RECIPE_DEFAULT[$GROUP]}" \
-          "$GROUP" \
-          "${CUR_IMAGE_CONFIG[$GROUP]}" \
-          "${IMAGE_DEFAULT_NAME[$GROUP]}" \
-          "$MAP_TARGET" &
+        if [[ -n "${IMAGE_DEFAULT[$GROUP]}" ]]; then
+            image_build \
+              -I "${IMAGE_DEFAULT[$GROUP]}" \
+              -g "$GROUP" \
+              -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
+              -m "$MAP_TARGET" &
+        else
+            image_build \
+              -r "${RECIPE_DEFAULT[$GROUP]}" \
+              -g "$GROUP" \
+              -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
+              -i "${IMAGE_DEFAULT_NAME[$GROUP]}" \
+              -m "$MAP_TARGET" &
+        fi
     done
     echo "See detailed logs in: $IMAGE_LOGDIR/"
     echo -n "Images started building at: "
@@ -311,4 +321,3 @@ function group_summary {
         echo ""
     done
 }
-

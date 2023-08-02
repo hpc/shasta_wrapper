@@ -12,43 +12,6 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and to permit
 # others to do so.
 
-BOS_CONFIG_DIR="/root/templates/"
-BOS_TEMPLATES=( )
-BOOT_LOGS="/var/log/boot/"`date +%y-%m-%dT%H-%M-%S`
-BOS_RAW=""
-
-function bos {
-    case "$1" in
-        clo*)
-            shift
-            bos_clone "$@"
-            ;;
-        boot)
-            shift
-            bos_action boot "$@"
-            ;;
-        config*)
-            shift
-            bos_action configure "$@"
-            ;;
-        delete)
-            shift
-            bos_delete "$@"
-            ;;
-        des*)
-            shift
-            bos_describe "$@"
-            ;;
-        ed*)
-            shift
-            bos_edit "$@"
-            ;;
-        job*)
-            shift
-            bos_job "$@"
-            ;;
-        li*)
-
 function bss {
     case "$1" in
         des*)

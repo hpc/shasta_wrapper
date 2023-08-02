@@ -249,7 +249,8 @@ function node_describe {
     if [[ -n "${BOS_DEFAULT[$GROUP]}" ]]; then
 
 
-        CONFIG="${CUR_IMAGE_CONFIG[$GROUP]}"
+        CONFIG="${CONFIG_DEFAULT[$GROUP]}"
+        CONFIG_IMG="${CONFIG_IMAGE_DEFAULT[$GROUP]}"
         IMAGE_ETAG="${CUR_IMAGE_ETAG[$GROUP]}"
 
         IMAGE_NAME="${CUR_IMAGE_NAME[$GROUP]}"
@@ -261,6 +262,7 @@ function node_describe {
          echo "image_name:          $IMAGE_NAME"
          echo "image_id:            $IMAGE_ID"
          echo "config:              $CONFIG"
+         echo "config id:           $CONFIG_IMAGE_DEFAULT"
          echo "groups:              $GROUP"
          echo "hsm_enabled          "
     elif [[ -n "${CONFIG_DEFAULT[$GROUP]}" ]]; then
@@ -385,7 +387,7 @@ function node_enable {
     CFS_ONLY=0
     OPTIND=1
     while getopts "c" OPTION; do
-        case "OPTION" in 
+        case "OPTION" in
             c) CFS_ONLY=1;;
             \?) die 1 "cfs_apply: Invalid option: - $OPTARG"; return 1 ;;
         esac
@@ -398,7 +400,7 @@ function node_enable {
         exit 1
     fi
 
-    if [ $CFS_ONLY -eq "0" ]; then 
+    if [ $CFS_ONLY -eq "0" ]; then
         hsm_enable_nodes true "${NODES[@]}"
     fi
     cfs_enable_nodes true "${NODES[@]}"
@@ -416,4 +418,3 @@ function node_disable {
     hsm_enable_nodes false "${NODES[@]}"
     cfs_enable_nodes false "${NODES[@]}"
 }
-

@@ -36,6 +36,10 @@ function main {
             shift
             bos "$@"
             ;;
+        bs*)
+            shift
+            bss "$@"
+            ;;
         _edit_file)
             shift
             edit_file_nolock "$@"

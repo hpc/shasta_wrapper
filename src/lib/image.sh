@@ -84,7 +84,7 @@ function refresh_images {
 
     RAW=$(rest_api_query "ims/images")
     if [[ $? -ne 0 ]]; then
-	 error "Error getting image information: $RAW"  
+	 error "Error getting image information: $RAW"
 	 return 1
     fi
     IFS=$'\n'
@@ -151,22 +151,25 @@ function image_delete {
 ## image_build
 # Build a bare image from recipe, and configure it via cfs.
 function image_build {
-    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE
+    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE FROM_IMAGE BSS_MAP
     OPTIND=1
-    while getopts "c:g:i:m:r:t:" OPTION ; do
+    while getopts "bc:g:i:m:r:t:I:" OPTION ; do
         case "$OPTION" in
-            c) CONFIG_NAME="$OPTARG"; shift ;;
-            g) GROUP_NAME="$OPTARG"; shift ;;
-            i) NEW_IMAGE_NAME="$OPTARG"; shift ;;
-            m) BOS_TEMPLATE="$OPTARG"; shift ;;
-            r) RECIPE_ID="$OPTARG"; shift ;;
-            t) CONFIG_TAG="$OPTARG"; shift ;;
+            b) BSS_MAP=1 ;;
+            c) CONFIG_NAME="$OPTARG" ;;
+            g) GROUP_NAME="$OPTARG" ;;
+            i) NEW_IMAGE_NAME="$OPTARG" ;;
+            I) FROM_IMAGE="$OPTARG" ;;
+            m) BOS_TEMPLATE="$OPTARG" ;;
+            r) RECIPE_ID="$OPTARG" ;;
+            t) CONFIG_TAG="$OPTARG" ;;
             \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+            :) die 1 "option:  -$OPTARG requires an argument" ; return 1 ;;
         esac
     done
     shift $((OPTIND-1))
 
-    if [[ -z "$RECIPE_ID" ]]; then
+    if [[ -z "$RECIPE_ID" && -z "$FROM_IMAGE" ]]; then
         RECIPE_ID="$1"
         shift
     fi
@@ -178,7 +181,7 @@ function image_build {
         CONFIG_NAME="$1"
         shift
     fi
-    if [[ -z "$NEW_IMAGE_NAME" ]]; then
+    if [[ -z "$NEW_IMAGE_NAME" && -z "$FROM_IMAGE" ]]; then
         NEW_IMAGE_NAME="$1"
         shift
     fi
@@ -187,11 +190,12 @@ function image_build {
         shift
     fi
 
-    if [[ -z "$RECIPE_ID" || -z "$GROUP_NAME" || -z "$CONFIG_NAME" ]]; then
-        echo "USAGE: $0 image build <OPTIONS> [recipe id] [group] [config] <image name>" "<bos template to map to>" 1>&2
+    if [[ -z "$GROUP_NAME" || -z "$CONFIG_NAME" || -z "$FROM_IMAGE" && -z "$RECIPE_ID" ]]; then
+        echo "USAGE: $0 image build <OPTIONS> [recipe id] [group] [config] <image name> <bos template to map to>" 1>&2
         echo "OPTIONS:"
         echo -e "\t -c <cfs config> - Configure the image with this cfs configuration"
         echo -e "\t -i <image name> - Base name to use for the created image"
+        echo -e "\t -I <image id> - Image to start with instead of making a new one"
         echo -e "\t -m <bos template> - Map the final built image to this bos template"
         echo -e "\t -r <recipe id> - Recipe id to build the image from"
         echo -e "\t -t <config tag> - name to use for the applied configuration. This will show on the end of the configured image name"
@@ -220,12 +224,17 @@ function image_build {
 
 
     mkdir -p "$IMAGE_LOGDIR"
-    echo "[$GROUP_NAME] Bare image build started. Full logs at: '$IMAGE_LOGDIR/bare-${NEW_IMAGE_NAME}.log'"
-    image_build_bare "$RECIPE_ID" "$NEW_IMAGE_NAME" "$GROUP_NAME" > "$IMAGE_LOGDIR/bare-${NEW_IMAGE_NAME}.log"
-    if [[ $? -ne 0 ]]; then
-        die "[$GROUP_NAME] bare image build failed... Not continuing"
+    if [[ -z "$FROM_IMAGE" ]]; then
+        echo "[$GROUP_NAME] Bare image build started. Full logs at: '$IMAGE_LOGDIR/bare-${NEW_IMAGE_NAME}.log'"
+        image_build_bare "$RECIPE_ID" "$NEW_IMAGE_NAME" "$GROUP_NAME" > "$IMAGE_LOGDIR/bare-${NEW_IMAGE_NAME}.log"
+        if [[ $? -ne 0 ]]; then
+            die "[$GROUP_NAME] bare image build failed... Not continuing"
+        fi
+        BARE_IMAGE_ID="$RETURN"
+    else
+        echo "[$GROUP_NAME] Useing prebuilt bare image: $FROM_IMAGE"
+        BARE_IMAGE_ID="$FROM_IMAGE"
     fi
-    BARE_IMAGE_ID="$RETURN"
 
 
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
@@ -235,12 +244,18 @@ function image_build {
     fi
     CONFIG_IMAGE_ID="$RETURN"
 
-    echo "[$GROUP_NAME] Deleting bare image, as it's no longer needed."
-    image_delete "$BARE_IMAGE_ID" > /dev/null 2>&1
+    if [[ -z "$FROM_IMAGE" ]]; then
+        echo "[$GROUP_NAME] Deleting bare image, as it's no longer needed."
+        image_delete "$BARE_IMAGE_ID" > /dev/null 2>&1
+    fi
 
 
     if [[ -n "$BOS_TEMPLATE" ]]; then
         image_map "$BOS_TEMPLATE" "$CONFIG_IMAGE_ID" "$GROUP_NAME"
+    fi
+
+    if [[ -n "$BSS_MAP" ]]; then
+        bss_map "$CONFIG_IMAGE_ID" "${GROUP2NODES[$GROUP]}"
     fi
 }
 
@@ -409,7 +424,7 @@ function image_logwatch {
         fi
     done
 
-    # Because the kiwi logs are far more usefull to debugging image builds than 
+    # Because the kiwi logs are far more usefull to debugging image builds than
     # the actual container logs, we go into the container and read from that instead
     echo
     echo
@@ -467,7 +482,7 @@ function image_configure {
     fi
 
     ## Setup cfs job id
-    # We need a group that's lowercase and only containers certain characters 
+    # We need a group that's lowercase and only containers certain characters
     # that cfs accepts to use it as the cfs job id
     local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
 
@@ -475,12 +490,12 @@ function image_configure {
         SESSION_NAME="$GROUP_SANITIZED"`date +%M`
     fi
 
-    # Delete any existing cfs session that has the same 
+    # Delete any existing cfs session that has the same
     # name to ensure we don't screw things up
     cfs_job_delete "$SESSION_NAME" > /dev/null 2>&1
 
-    ## Launch the cfs configuration job. 
-    # We try multiple times as sometimes cfs is in a bad state and won't 
+    ## Launch the cfs configuration job.
+    # We try multiple times as sometimes cfs is in a bad state and won't
     # respond (usually responds eventually)
     RETRIES=20
     RET=1
@@ -521,7 +536,7 @@ function image_configure {
         die "[$GROUP_NAME] image configuation failed"
     fi
 
-    ## Validate that we got an image and set that as the RETURN so that if 
+    ## Validate that we got an image and set that as the RETURN so that if
     # parent function wants it it can use it
 
     NEW_IMAGE_ID=$(cfs_job_describe "$SESSION_NAME" | jq '.status.artifacts[0].result_id' | sed 's/"//g')
@@ -582,4 +597,3 @@ function image_defaults {
         fi
     done
 }
-

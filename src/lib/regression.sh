@@ -9,7 +9,6 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and to permit
 # others to do so.
 
-function regression_syntax_recipe {
 REG_FAILURES=0
 REG_FAILED_TESTS=( )
 REG_TESTS_RUN=0

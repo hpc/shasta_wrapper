@@ -9,7 +9,6 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and to permit
 # others to do so.
 
-function regression_syntax_recipe {
 function regression_syntax_regression {
     echo "## regression"
     function_ok regression_tests

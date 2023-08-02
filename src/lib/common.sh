@@ -11,7 +11,7 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and to permit
 # others to do so.
 
-declare -A BOS_DEFAULT CONFIG_DEFAULT RECIPE_DEFAULT IMAGE_DEFAULT_NAME CUR_IMAGE_ID CUR_IMAGE_NAME CUR_IMAGE_ETAG CUR_IMAGE_CONFIG IMAGE_GROUPS
+declare -A BOS_DEFAULT CONFIG_DEFAULT RECIPE_DEFAULT IMAGE_DEFAULT IMAGE_DEFAULT_NAME CUR_IMAGE_ID CUR_IMAGE_NAME CUR_IMAGE_ETAG IMAGE_GROUPS CONFIG_IMAGE_DEFAULT
 CLUSTER_GROUPS=( )
 
 TMPDIR=""
@@ -522,39 +522,47 @@ function cluster_defaults_config {
 	    continue
         fi
 
-	if [[ -n "${CONFIG_DEFAULT[$group]}" ]]; then
-	    CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
-	else
-            CUR_IMAGE_CONFIG[$group]=$(echo "$BOS" | jq '.cfs.configuration' | sed 's/"//g')
+	if [[ -z "${CONFIG_DEFAULT[$group]}" ]]; then
+            CONFIG_DEFAULT[$group]=$(echo "$BOS" | jq '.cfs.configuration' | sed 's/"//g')
+	fi
+	if [[ -z "${CONFIG_IMAGE_DEFAULT[$group]}" ]]; then
+            CONFIG_IMAGE_DEFAULT[$group]="${CONFIG_DEFAULT[$group]}"
 	fi
         CUR_IMAGE_ETAG[$group]=$(echo "$BOS" | jq '.boot_sets[].etag' | sed 's/"//g')
-    done
-    for group in "${!CONFIG_DEFAULT[@]}"; do
-        CUR_IMAGE_CONFIG[$group]="${CONFIG_DEFAULT[$group]}"
     done
 }
 
 # Go through and check all the configuration and validate it all looks sane (check that things actually map to things that exist)
 function cluster_validate {
     local group RECIPE CONFIG
+    declare -a GROUP_LIST
     cluster_defaults_config
 
     local CONFIG_RAW CONFIG RECIPE_RAW RECIPE
     CONFIG_RAW=$(rest_api_query "cfs/v2/configurations")
     RECIPE_RAW=$(rest_api_query "ims/recipes")
-    for group in "${!BOS_DEFAULT[@]}"; do
+    GROUP_LIST=( $(echo "${!BOS_DEFAULT[@]}" "${!IMAGE_DEFAULT[@]}" | sed 's/ /\n/g' | sort -u) )
+    for group in "${GROUP_LIST[@]}"; do
         echo -n "Checking $group..."
         # Validate recipe used exists
-        RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"${RECIPE_DEFAULT[$group]}\")")
-        if [[ -z "$RECIPE" ]]; then
-            echo
-            die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
+        if [[ -z "${IMAGE_DEFAULT[$group]}" ]]; then
+            RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"${RECIPE_DEFAULT[$group]}\")")
+            if [[ -z "$RECIPE" ]]; then
+                echo
+                die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
+            fi
         fi
         # Validate cfs configuration used exists
-        CONFIG=$(echo "$CONFIG_RAW" | jq ".[] | select(.name == \"${CUR_IMAGE_CONFIG[$group]}\")")
+        CONFIG=$(echo "$CONFIG_RAW" | jq ".[] | select(.name == \"${CONFIG_DEFAULT[$group]}\")")
         if [[ -z "$CONFIG" ]]; then
             echo
-            die "Error config '${CUR_IMAGE_CONFIG[$group]}' set in bos sessiontemplate '${BOS_DEFAULT[$group]}' is not a valid configuration. check bos configuration."
+            die "Error config '${CONFIG_DEFAULT[$group]}' set in bos sessiontemplate '${BOS_DEFAULT[$group]}' is not a valid configuration. check bos configuration."
+        fi
+        # Validate cfs configuration used exists
+        CONFIG_IMAGE=$(echo "$CONFIG_RAW" | jq ".[] | select(.name == \"${CONFIG_IMAGE_DEFAULT[$group]}\")")
+        if [[ -z "$CONFIG" ]]; then
+            echo
+            die "Error image config '${CONFIG_IMAGE_DEFAULT[$group]}' is not a valid configuration. check cluster_defaults"
         fi
         echo "ok"
     done
@@ -599,4 +607,3 @@ function setup_craycli {
 
     echo "$CRAY_ACCESS_TOKEN_RAW" > $CRAY_CLI_TOKEN_FILE
 }
-

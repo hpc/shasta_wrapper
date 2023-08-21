@@ -9,7 +9,6 @@
 # derivative works, distribute copies to the public, perform publicly and display publicly, and to permit
 # others to do so.
 
-function regression_syntax_recipe {
 # generate with grep ^function bos_jobs.sh  | awk '{print $2}' | sed 's/^/    function_ok /g'
 
 

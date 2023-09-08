@@ -398,7 +398,6 @@ function cfs_update {
 
         read_git_config
         (
-            set -e
             flock -x 42
 
             cfs_describe $CONFIG | jq 'del(.name)' | jq 'del(.lastUpdated)' > "$FILE" 2> /dev/null
@@ -412,10 +411,9 @@ function cfs_update {
             GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
             GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
             for LAYER in $(seq 0 $GIT_REPO_COUNT); do
-                cfs_update_git "$FILE" "$LAYER" "$CONFIG" "$GIT_TARGET"
+                cfs_update_git "$FILE" "$LAYER" "$CONFIG" "$GIT_TARGET" || error "Failed to check repo for updates...\n"
             done
             rmdir "$TMPDIR" > /dev/null 2>&1
-            set +e
         ) 42>/tmp/lock
 
 	echo
@@ -448,7 +446,6 @@ function cfs_update_git {
 
     get_git_password
 
-    set -e
     LAYER_URL=$(cat "$FILE" | jq ".layers[$LAYER].cloneUrl" | sed 's/"//g')
     LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
     URL=$(echo "$LAYER_URL" | sed "s|https://|https://$GIT_USER:$GIT_PASSWD@|g"| sed "s|http://|http://$GIT_USER:$GIT_PASSWD@|g")
@@ -463,9 +460,9 @@ function cfs_update_git {
 
     echo "cloning $LAYER_URL"
     cd "$TMPDIR"
-    git clone "$URL" "$TMPDIR/$LAYER"
+    git clone "$URL" "$TMPDIR/$LAYER" || return 1
     cd "$TMPDIR/$LAYER"
-    git checkout "$GIT_TARGET"
+    git checkout "$GIT_TARGET" || return 1
 
     NEW_COMMIT=$(git rev-parse HEAD)
     if [[ "$LAYER_CUR_COMMIT" != "$NEW_COMMIT" ]]; then
@@ -478,5 +475,4 @@ function cfs_update_git {
         echo "No updates. commit: '$NEW_COMMIT', old commit: '$LAYER_CUR_COMMIT'"
     fi
     rm -rf "$TMPDIR/$LAYER"
-    set +e
 }

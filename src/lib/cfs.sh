@@ -70,7 +70,7 @@ function cfs_help {
     echo    "USAGE: $0 cfs [action]"
     echo    "DESC: Each cfs config is a declaration of the git ansible repos to checkout and run against each image groups defined in the bos templates. A cfs is defined in a bos sessiontemplate to be used to configure a node group at boot or an image after creation. Direct access via cray commands can be done via 'cray cfs configurations'"
     echo    "ACTIONS:"
-    echo -e "\tapply [cfs] [node] : Runs the given cfs against it's confgured nodes"
+    echo -e "\tapply <options> [cfs] [node] : Runs the given cfs against it's confgured nodes"
     echo -e "\tclone [src] [dest] : Clone an existing cfs"
     echo -e "\tedit [cfs config] : Edit a given cfs."
     echo -e "\tdelete [cfs config] : delete the cfs"
@@ -228,7 +228,11 @@ function cfs_apply {
         case "$OPTION" in
             n) NAME="$OPTARG"
             ;;
-            \?) die 1 "cfs_apply:  Invalid option:  -$OPTARG" ; return 1 ;;
+            \?) echo "USAGE: $0 cfs apply <options> [configuration name] [nodes|groups]"
+                echo "OPTIONS: "
+                echo -e "\t-n [name] - specify a name to give the cfs job"
+                return 1
+            ;;
         esac
     done
     setup_craycli
@@ -241,18 +245,19 @@ function cfs_apply {
     convert2xname "$@"
     local NODES=( $RETURN )
 
-    if [[ -z "$NAME" ]]; then
-        NAME=cfs`date +%s`
-    fi
-    cfs_exit_if_not_valid "$CONFIG"
-
-    NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
     if [[ -z "$CONFIG" ]]; then
         echo "USAGE: $0 cfs apply <options> [configuration name] [nodes|groups]"
         echo "OPTIONS:"
         echo -e "\t-n - specify a name to give the cfs job"
         exit 1
     fi
+
+    if [[ -z "$NAME" ]]; then
+        NAME=cfs`date +%s`
+    fi
+    cfs_exit_if_not_valid "$CONFIG"
+
+    NODE_STRING=$(echo "${NODES[@]}" | sed 's/ /,/g')
     refresh_ansible_groups
 
     cfs_clear_node_counters "${NODES[@]}"

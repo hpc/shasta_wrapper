@@ -78,7 +78,7 @@ function cfs_help {
     echo -e "\tjob [action]: Manage cfs jobs"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs config] : shows all info on a given cfs"
-    echo -e "\tupdate [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
+    echo -e "\tupdate <options> [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
 
     exit 1
 }
@@ -352,8 +352,22 @@ function read_git_config {
 ## cfs_update
 # Update the commit ids for the given cfs configurations based on what urls and branches are defined in /etc/cfs_defaults.conf. Asks user before making any changes.
 function cfs_update {
+    local LAYER LAYER_URL FLOCK CONFIG GIT_TARGET=''
+
+    OPTIND=1
+    while getopts "t:" OPTION ; do
+        case "$OPTION" in
+            t) GIT_TARGET="$OPTARG"
+            ;;
+            \?) echo "USAGE: $0 cfs update <OPTIONS> [config list]"
+                echo "OPTIONS: "
+                echo -e "\t-t [target] specify an alternate git tag/branch to point update to"
+                return 1
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
     local CONFIGS=( "$@" )
-    local LAYER LAYER_URL FLOCK CONFIG
 
     if [[ -z "${CONFIGS[@]}" ]]; then
         prompt_yn "No arguments given, update all default cfs configs?" || exit 0
@@ -393,7 +407,7 @@ function cfs_update {
             GIT_REPO_COUNT=$(cat "$FILE" | jq '.layers[].commit' | wc -l)
             GIT_REPO_COUNT=$(($GIT_REPO_COUNT - 1))
             for LAYER in $(seq 0 $GIT_REPO_COUNT); do
-                cfs_update_git "$FILE" "$LAYER" "$CONFIG"
+                cfs_update_git "$FILE" "$LAYER" "$CONFIG" "$GIT_TARGET"
             done
             rmdir "$TMPDIR" > /dev/null 2>&1
             set +e
@@ -423,6 +437,7 @@ function cfs_update_git {
     local FILE="$1"
     local LAYER="$2"
     local CONFIG="$3"
+    local GIT_TARGET="$4"
     setup_craycli
 
 
@@ -430,28 +445,32 @@ function cfs_update_git {
 
     set -e
     LAYER_URL=$(cat "$FILE" | jq ".layers[$LAYER].cloneUrl" | sed 's/"//g')
-    if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
-        LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
-        URL=$(echo "$LAYER_URL" | sed "s|https://|https://$GIT_USER:$GIT_PASSWD@|g"| sed "s|http://|http://$GIT_USER:$GIT_PASSWD@|g")
-
-        echo "cloning $LAYER_URL"
-        cd "$TMPDIR"
-        git clone "$URL" "$TMPDIR/$LAYER"
-        cd "$TMPDIR/$LAYER"
-        git checkout "${CFS_BRANCH_DEFAULT[$LAYER_URL]}"
-
-        NEW_COMMIT=$(git rev-parse HEAD)
-        if [[ "$LAYER_CUR_COMMIT" != "$NEW_COMMIT" ]]; then
-            echo "old commit: $LAYER_CUR_COMMIT"
-            echo "new commit: $NEW_COMMIT"
-            prompt_yn "Would you like to apply the new commit '$NEW_COMMIT' for '$LAYER_URL'?" || return 0
-            json_set_field "$FILE" ".layers[$LAYER].commit" "$NEW_COMMIT"
-            verbose_cmd cray cfs configurations update $CONFIG --file "$CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
+    LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
+    URL=$(echo "$LAYER_URL" | sed "s|https://|https://$GIT_USER:$GIT_PASSWD@|g"| sed "s|http://|http://$GIT_USER:$GIT_PASSWD@|g")
+    if [[ -z "$GIT_TARGET" ]]; then
+        if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
+            GIT_TARGET="${CFS_BRANCH_DEFAULT[$LAYER_URL]}"
         else
-            echo "No updates. commit: '$NEW_COMMIT', old commit: '$LAYER_CUR_COMMIT'"
+            echo "$LAYER_URL is not defined in /etc/cfs_defaults.conf... skipping"
+            return 1
         fi
+    fi
+
+    echo "cloning $LAYER_URL"
+    cd "$TMPDIR"
+    git clone "$URL" "$TMPDIR/$LAYER"
+    cd "$TMPDIR/$LAYER"
+    git checkout "$GIT_TARGET"
+
+    NEW_COMMIT=$(git rev-parse HEAD)
+    if [[ "$LAYER_CUR_COMMIT" != "$NEW_COMMIT" ]]; then
+        echo "old commit: $LAYER_CUR_COMMIT"
+        echo "new commit: $NEW_COMMIT"
+        prompt_yn "Would you like to apply the new commit '$NEW_COMMIT' for '$LAYER_URL'?" || return 0
+        json_set_field "$FILE" ".layers[$LAYER].commit" "$NEW_COMMIT"
+        verbose_cmd cray cfs configurations update $CONFIG --file "$CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
     else
-        echo "$LAYER_URL is not defined in /etc/cfs_defaults.conf... skipping"
+        echo "No updates. commit: '$NEW_COMMIT', old commit: '$LAYER_CUR_COMMIT'"
     fi
     rm -rf "$TMPDIR/$LAYER"
     set +e

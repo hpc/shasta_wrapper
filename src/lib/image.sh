@@ -205,7 +205,7 @@ function image_build {
 
     refresh_ansible_groups
     if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
-        die "'$GROUP_NAME' doesn't appear to be a valid group name."
+        error "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
     fi
 
     cfs_describe "$CONFIG_NAME" > /dev/null 2>&1
@@ -471,8 +471,8 @@ function image_configure {
 
     ## Validate group name
     if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
-        echo "'$GROUP_NAME' doesn't appear to be a valid group name."
-        die "'$GROUP_NAME' doesn't appear to be a valid group name."
+        echo "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
+        error "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
     fi
     echo "$GROUP_NAME: ${IMAGE_GROUPS[$GROUP_NAME]}"
     if [[ -n "${IMAGE_GROUPS[$GROUP_NAME]}" ]]; then

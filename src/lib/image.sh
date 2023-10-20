@@ -151,13 +151,14 @@ function image_delete {
 ## image_build
 # Build a bare image from recipe, and configure it via cfs.
 function image_build {
-    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE FROM_IMAGE BSS_MAP
+    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE FROM_IMAGE BSS_MAP IMAGE_GROUPS
     OPTIND=1
-    while getopts "bc:g:i:m:r:t:I:" OPTION ; do
+    while getopts "bc:g:G:i:m:r:t:I:" OPTION ; do
         case "$OPTION" in
             b) BSS_MAP=1 ;;
             c) CONFIG_NAME="$OPTARG" ;;
             g) GROUP_NAME="$OPTARG" ;;
+            G) IMAGE_GROUPS="$OPTARG" ;;
             i) NEW_IMAGE_NAME="$OPTARG" ;;
             I) FROM_IMAGE="$OPTARG" ;;
             m) BOS_TEMPLATE="$OPTARG" ;;
@@ -188,6 +189,9 @@ function image_build {
     if [[ -z "$BOS_TEMPLATE" ]]; then
         BOS_TEMPLATE="$1"
         shift
+    fi
+    if [[ -z "$IMAGE_GROUPS" ]]; then
+        IMAGE_GROUPS="$GROUP_NAME"
     fi
 
     if [[ -z "$GROUP_NAME" || -z "$CONFIG_NAME" || -z "$FROM_IMAGE" && -z "$RECIPE_ID" ]]; then
@@ -238,7 +242,7 @@ function image_build {
 
 
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
-    image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$GROUP_NAME" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+    image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$IMAGE_GROUPS" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     if [[ $? -ne 0 ]]; then
         die "[$GROUP_NAME] configure image failed... Not continuing"
     fi
@@ -444,7 +448,7 @@ function image_logwatch {
 ## image_configure
 # Configure an image with cfs
 function image_configure {
-    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP OPTIND
+    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP OPTIND ARGS
     OPTIND=1
     while getopts "n:" OPTION ; do
         case "$OPTION" in
@@ -456,11 +460,12 @@ function image_configure {
     shift $((OPTIND-1))
 
     local IMAGE_ID=$1
-    local GROUP_NAME=$2
+    local GROUP_NAMES_RAW=$2
     local CONFIG_NAME=$3
+    declare -a GROUP_NAMES
     cluster_defaults_config
 
-    if [[ -z "$IMAGE_ID" || -z "$GROUP_NAME" || -z "$CONFIG_NAME" ]]; then
+    if [[ -z "$IMAGE_ID" || -z "$GROUP_NAMES_RAW" || -z "$CONFIG_NAME" ]]; then
         echo "USAGE: $0 image config <OPTIONS> [image id] [group name] [config name]"
         echo "OPTIONS:"
         echo -e "\t-n [name] - set a name for the cfs run instead of the default name"
@@ -469,17 +474,18 @@ function image_configure {
     setup_craycli
     refresh_ansible_groups
 
+
+    IFS=$',\t\n'
+    GROUP_NAMES=( $GROUP_NAMES_RAW )
+    IFS=$' \t\n'
+
     ## Validate group name
-    if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
-        echo "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
-        error "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
-    fi
-    echo "$GROUP_NAME: ${IMAGE_GROUPS[$GROUP_NAME]}"
-    if [[ -n "${IMAGE_GROUPS[$GROUP_NAME]}" ]]; then
-        IMAGE_GROUP="${IMAGE_GROUPS[$GROUP_NAME]}"
-    else
-        IMAGE_GROUP="$GROUP_NAME"
-    fi
+    for GROUP_NAME in "${GROUP_NAMES[@]}"; do
+        if [[ -z "${GROUP2NODES[$GROUP_NAME]}" ]]; then
+            echo "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
+            error "WARNING: '$GROUP_NAME' doesn't appear to be a valid group name."
+        fi
+    done
 
     ## Setup cfs job id
     # We need a group that's lowercase and only containers certain characters
@@ -493,6 +499,11 @@ function image_configure {
     # Delete any existing cfs session that has the same
     # name to ensure we don't screw things up
     cfs_job_delete "$SESSION_NAME" > /dev/null 2>&1
+
+    ARGS=""
+    for GROUP_NAME in "${GROUP_NAMES[@]}"; do
+        ARGS="$ARGS --target-group '$GROUP_NAME' '$IMAGE_ID'"
+    done
 
     ## Launch the cfs configuration job.
     # We try multiple times as sometimes cfs is in a bad state and won't
@@ -510,7 +521,7 @@ function image_configure {
     	    --name "$SESSION_NAME" \
     	    --configuration-name "$CONFIG_NAME" \
     	    --target-definition image \
-    	    --target-group "$IMAGE_GROUP" "$IMAGE_ID" 2>&1
+    	    $ARGS 2>&1
         RET=$?
 	sleep 2
         TRIES=$(($TRIES + 1))

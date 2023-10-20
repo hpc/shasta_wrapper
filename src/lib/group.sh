@@ -262,7 +262,7 @@ function group_build_images {
         shift
     fi
     local GROUP_LIST=( "$@" )
-    local MAP_TARGET
+    local MAP_TARGET IMAGE_GROUP
     cluster_defaults_config
 
     if [[ -z "${GROUP_LIST[@]}" ]]; then
@@ -275,6 +275,12 @@ function group_build_images {
     echo
 
     for GROUP in "${GROUP_LIST[@]}"; do
+        echo "$GROUP: ${IMAGE_GROUPS[$GROUP]}"
+        if [[ -n "${IMAGE_GROUPS[$GROUP]}" ]]; then
+            IMAGE_GROUP="${IMAGE_GROUPS[$GROUP]}"
+        else
+            IMAGE_GROUP="$GROUP"
+        fi
         if [[ "$MAP" -eq "0" ]]; then
             MAP_TARGET="${BOS_DEFAULT[$GROUP]}"
         fi
@@ -282,12 +288,14 @@ function group_build_images {
             image_build \
               -I "${IMAGE_DEFAULT[$GROUP]}" \
               -g "$GROUP" \
+              -G "$IMAGE_GROUP" \
               -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
               -m "$MAP_TARGET" &
         else
             image_build \
               -r "${RECIPE_DEFAULT[$GROUP]}" \
               -g "$GROUP" \
+              -G "$IMAGE_GROUP" \
               -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
               -i "${IMAGE_DEFAULT_NAME[$GROUP]}" \
               -m "$MAP_TARGET" &

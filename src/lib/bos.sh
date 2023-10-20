@@ -125,7 +125,7 @@ function bos_get_default_node_group {
             return
         fi
     done
-    die "Error. Node '$NODE' is not a member of any group defined for 'BOS_DEFAULT' in /etc/cluster_defaults.conf"
+    die "Error. Node '$NODE' is not a member of any group defined for 'BOS_DEFAULT' in /etc/shasta_wrapper/cluster_defaults.conf"
 }
 
 ## bos_list

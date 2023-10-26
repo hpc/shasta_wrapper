@@ -1,6 +1,6 @@
 ## bos library
 # Contains all commands for `shasta bos`
-# This includes all bos job actions. Largely used for configuring bos and launching bos jobs to reboot/configure nodes.
+# Largely used for configuring bos and launching bos jobs to reboot/configure nodes.
 
 # © 2023. Triad National Security, LLC. All rights reserved.
 # This program was produced under U.S. Government contract 89233218CNA000001 for Los Alamos
@@ -14,7 +14,6 @@
 
 BOS_CONFIG_DIR="/root/templates/"
 BOS_TEMPLATES=( )
-BOOT_LOGS="/var/log/boot/"`date +%y-%m-%dT%H-%M-%S`
 BOS_RAW=""
 
 function bos {
@@ -43,10 +42,6 @@ function bos {
             shift
             bos_edit "$@"
             ;;
-        job*)
-            shift
-            bos_job "$@"
-            ;;
         li*)
             shift
             bos_list "$@"
@@ -63,6 +58,14 @@ function bos {
             shift
             bos_action shutdown "$@"
             ;;
+        stage)
+            shift
+            bos_action stage "$@"
+            ;;
+        sum*)
+            shift
+            bos_summary "$@"
+            ;;
         *)
             bos_help
             ;;
@@ -78,11 +81,12 @@ function bos_help {
     echo -e "\tconfig [template] [nodes|groups] : Configure the given nodes with the given bos template"
     echo -e "\tedit [template] : edit a bos session template"
     echo -e "\tdescribe [template] : (same as show)"
-    echo -e "\tjob [action]: Manage bos jobs"
     echo -e "\tlist : show all bos session templates"
     echo -e "\treboot [template] [nodes|groups] : reboot a given node into the given bos template"
     echo -e "\tshutdown [template] [nodes|groups] : shutdown a given node into the given bos template"
     echo -e "\tshow [template] : show details of session template"
+    echo -e "\tstage [template] [nodes|groups] : Set image in bos template to be used at next boot for given nodes"
+    echo -e "\tsummary <-v> : Show node states that bos is working through"
 
     exit 1
 }
@@ -93,13 +97,81 @@ function refresh_bos_raw {
     if [[ -n "$BOS_RAW" && "$1" != '--force' ]]; then
         return 0
     fi
-    BOS_RAW=$(rest_api_query "bos/v1/sessiontemplate")
+    BOS_RAW=$(rest_api_query "bos/v2/sessiontemplates")
     if [[ -z "$BOS_RAW" || $? -ne 0 ]]; then
        error "${COLOR_RED}Error retrieving bos data: $BOS_RAW"
        BOS_RAW=""
        return 1
     fi
     return 0
+}
+
+## bos_component_refresh
+# Refresh current node info from bos
+function bos_component_refresh {
+    if [[ -n "${BOS_JOBS[0]}" && "$1" != "--force" ]]; then
+        return
+    fi
+    local RET=1
+    BOS_NODE_RAW=$(rest_api_query "bos/v2/components")
+    if [[ -z "$BOS_NODE_RAW" || $? -ne 0 ]]; then
+       error "Error retrieving bos data: $BOS_NODE_RAW"
+       return 1
+    fi
+}
+
+## bos_summary
+function bos_summary {
+    local VERBOSE=0 NODE NODE_RAW SPLIT STATE CONDENSED_NODES
+    declare -a NODE_STATES
+    declare -A NODE_STATE_HASH
+    OPTIND=1
+    while getopts "v" OPTION ; do
+        case "$OPTION" in
+            v) VERBOSE=1
+            ;;
+            \?) echo "USAGE: $0 bos summary <OPTIONS>"
+                echo "OPTIONS: "
+                echo -e "\t-v - Output the node names instead of the count"
+                return 1
+            ;;
+        esac
+    done
+    setup_craycli
+
+    shift $((OPTIND-1))
+
+    bos_component_refresh
+    #echo "$BOS_NODE_RAW"
+    #return
+    if [[ $VERBOSE -eq 0 ]]; then
+	    echo "$BOS_NODE_RAW" | jq -r '.[] | "\(.status.status)/\(.status.phase)"' | sort | uniq -c
+    else
+        IFS=$'\n'
+	NODE_STATES=( $(echo "$BOS_NODE_RAW" | jq -r '.[] | "\(.id) \(.status.status)/\(.status.phase)"') )
+        IFS=$' \t\n'
+	for NODE_RAW in "${NODE_STATES[@]}"; do
+            SPLIT=( $NODE_RAW )
+            NODE="${SPLIT[0]}"
+            STATE="${SPLIT[1]}"
+	    if [[ -z $STATE ]]; then
+	        STATE='NoAction'
+	    fi
+
+	    if [[ -z "${NODE_STATE_HASH[$STATE]}" ]]; then
+	        NODE_STATE_HASH[$STATE]="$NODE"
+            else
+	        NODE_STATE_HASH[$STATE]+=",$NODE"
+            fi
+	done
+
+	STATES_SORTED=$(echo "${!NODE_STATE_HASH[@]}" | sort)
+        for STATE in $STATES_SORTED; do
+            convert2fullnid "${NODE_STATE_HASH[$STATE]}"
+	    CONDENSED_NODES=$(nodeset -f $RETURN)
+	    printf '%40s %s\n' "$STATE" "$CONDENSED_NODES"
+	done
+    fi
 }
 
 ## bos_get_default_node_group
@@ -164,7 +236,7 @@ function bos_describe {
         echo "USAGE: $0 bos describe [bos config]"
 	return 1
     fi
-    rest_api_query "bos/v1/sessiontemplate/$1"
+    rest_api_query "bos/v2/sessiontemplates/$1"
     return $?
 }
 
@@ -175,7 +247,7 @@ function bos_delete {
         echo "USAGE: $0 bos delete [bos config]"
 	return 1
     fi
-    rest_api_delete "bos/v1/sessiontemplate/$1"
+    rest_api_delete "bos/v2/sessiontemplates/$1"
     return $?
 }
 
@@ -281,6 +353,7 @@ function bos_action {
     local TEMPLATE="$1"
     shift
     local TARGET=(  )
+    local STAGE ARGS
     if [[ -n "$NODES_CONVERTED" ]]; then
         TARGET=( "$@" )
     elif [[ -n "$@" ]]; then
@@ -293,6 +366,11 @@ function bos_action {
     fi
     setup_craycli
 
+    if [[ "$ACTION" == "stage" ]]; then
+        ACTION='reboot'
+	STAGE=1
+	ARGS+=" --stage true"
+    fi
 
     local KUBE_JOB_ID SPLIT BOS_SESSION POD LOGFILE TARGET_STRING
     TARGET_STRING=$(echo "${TARGET[@]}" | sed 's/ /,/g')
@@ -301,28 +379,18 @@ function bos_action {
     #cfs_clear_node_counters "${TARGET[@]}"
 
     bos_exit_if_not_valid "$TEMPLATE"
-    KUBE_JOB_ID=$(cray bos session create --operation "$ACTION" --template-uuid "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.links' | jq '.[].jobId' | grep -v null | sed 's/"//g')
-    if [[ -z "$KUBE_JOB_ID" ]]; then
+    set -x
+    BOS_SESSION=$(cray bos v2 sessions create $ARGS --operation "$ACTION" --template-name "$TEMPLATE" --limit "$TARGET_STRING"  --format json | jq '.name' | grep -v null | sed 's/"//g')
+    if [[ -z "$BOS_SESSION" ]]; then
         die "Failed to create bos session"
     fi
-    BOS_SESSION=$(echo "$KUBE_JOB_ID" | sed 's/^boa-//g')
 
-
-    # if booting more than one node, just call it by the template name
-    if [[ "${#TARGET}" -ge 2 ]]; then
-        LOGFILE="$BOOT_LOGS/$ACTION-$TEMPLATE.log"
+    if [[ -n $STAGE ]]; then
+        echo "stage action initiated."
     else
-        LOGFILE="$BOOT_LOGS/$ACTION-${TARGET[0]}.log"
+        echo "$ACTION action initiated."
     fi
-
-    mkdir -p "$BOOT_LOGS"
-    bos_job_log "$BOS_SESSION" > "$LOGFILE" 2>&1 &
-    echo "$ACTION action initiated. details:"
     echo "BOS Session: $BOS_SESSION"
-    echo "kubernetes pod: $POD"
-    echo
-    echo "Starting $ACTION..."
-    echo "Boot Logs: '$LOGFILE'"
     echo
 }
 

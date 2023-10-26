@@ -13,7 +13,6 @@
 # others to do so.
 
 
-BOS_JOBS=( )
 BOS_JOBS_RAW=""
 
 function bos_job {
@@ -59,18 +58,15 @@ function bos_job_help {
 ## refresh_bos_jobs
 # Refresh current job info from bos
 function refresh_bos_jobs {
-    local BOS_JOBS_RAW
     if [[ -n "${BOS_JOBS[0]}" && "$1" != "--force" ]]; then
         return
     fi
     local RET=1
-    BOS_JOBS_RAW=$(rest_api_query "bos/v1/session")
-    if [[ -z "$BOS_JOBS_RAW" || $? -ne 0 ]]; then	
+    BOS_JOBS_RAW=$(rest_api_query "bos/v2/sessions")
+    if [[ -z "$BOS_JOBS_RAW" || $? -ne 0 ]]; then
        error "Error retrieving bos data: $BOS_JOBS_RAW"
        return 1
     fi
-    BOS_JOBS=( $(echo "$BOS_JOBS_RAW" |\
-        jq -r '.[]' ) )
 }
 
 ## bos_job_list
@@ -78,27 +74,10 @@ function refresh_bos_jobs {
 function bos_job_list {
     local JOB
     refresh_bos_jobs
-    if [[ "$1" == '-s' ]]; then
-        for JOB in "${BOS_JOBS[@]}"; do
-            echo "$JOB"
-        done
-    elif [[ -z "$1" ]]; then
-        printf "${COLOR_BOLD}%28s   %37s   %30s   %10s$COLOR_RESET\n" Started ID Template Complete
-        for JOB in "${BOS_JOBS[@]}"; do
-            local RET=1
-            while [[ "$RET" -ne 0 ]]; do
-                printf "%28s   %37s   %30s   %10s\n" \
-                  `rest_api_query "bos/v1/session/$JOB" 2> /dev/null \
-                  | jq ". | \"\\(.start_time)   $JOB   \\(.templateName)   \\(.complete)\"" \
-                  | sed 's/"//g'`
-                RET=$?
-            done
-        done | sort
-    else
-	echo "Usage: $0 bos job list <options>"
-	echo "Options:"
-	echo -e "\t-s: short listing (just list ids). This is much faster but less informative"
-    fi
+    printf "${COLOR_BOLD}%28s   %37s   %30s   %10s$COLOR_RESET\n" Started ID Template State
+    printf "%28s   %37s   %30s   %10s\n" $(echo "$BOS_JOBS_RAW" \
+      | jq -r '.[]| "\(.status.start_time)   \(.name)    \(.template_name)   \(.status.status)"') |\
+      sort
 }
 
 ## bos_job_describe
@@ -108,7 +87,7 @@ function bos_job_describe {
         echo "USAGE: $0 bos job show [jobid]"
 	return 1
     fi
-    OUTPUT=$(rest_api_query "bos/v1/session/$1")
+    OUTPUT=$(rest_api_query "bos/v2/sessions/$1")
     local RET="$?"
 
     if [[ "$RET" -ne 0 ]]; then
@@ -136,7 +115,7 @@ function bos_job_delete {
             JOBS=( )
             ALL_JOBS=( "${BOS_JOBS[@]}" )
             for job in "${BOS_JOBS[@]}"; do
-                comp=`rest_api_query "bos/v1/session/$job" | jq 'select(.complete == true) .error_count'`
+                comp=`rest_api_query "bos/v2/sessions/$job" | jq 'select(.complete == true) .error_count'`
                 if [ "$comp" = "0" ]; then
                     JOBS+=( "$job" )
                 fi
@@ -163,7 +142,7 @@ function bos_job_delete {
             continue
         fi
         echo cray bos session delete $job --format json
-        rest_api_delete "bos/v1/session/$job"
+        rest_api_delete "bos/v2/sessions/$job"
     done
 }
 ## bos_job_exit_if_not_valid
@@ -211,4 +190,3 @@ function bos_job_log {
 
     kubectl logs -n services "$POD" -c boa -f
 }
-

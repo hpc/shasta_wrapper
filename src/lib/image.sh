@@ -329,7 +329,7 @@ function image_build_bare {
 
     cluster_defaults_config
     if [[ -z "$IMS_PUBLIC_KEY_ID" ]]; then
-	    die "[$GROUP_NAME] Error! IMS_PUBLIC_KEY_ID is not defined in '/etc/cluster_defaults.conf'"
+	    die "[$GROUP_NAME] Error! IMS_PUBLIC_KEY_ID is not defined in '/etc/shasta_wrapper/cluster_defaults.conf'"
     fi
 
     set -e
@@ -594,7 +594,7 @@ function image_defaults {
         BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
 
         if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
-            echo "Warning: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+            echo "Warning: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/shasta_wrapper/cluster_defaults.conf" 1>&2
         fi
 
         IMAGE_RAW=$(rest_api_query "ims/images" | jq ".[] | select(.link.etag == \"${CUR_IMAGE_ETAG[$group]}\")")

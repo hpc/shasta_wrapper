@@ -512,13 +512,13 @@ function cluster_defaults_config {
     if [[ -n "${!BOS_DEFAULT[@]}" ]]; then
         return 0
     fi
-    source /etc/cluster_defaults.conf
+    source /etc/shasta_wrapper/cluster_defaults.conf
     refresh_bos_raw
     for group in "${!BOS_DEFAULT[@]}"; do
         BOS=$(echo "$BOS_RAW" | jq ".[] | select(.name == \"${BOS_DEFAULT[$group]}\")")
 
         if [[ -z "$BOS" && -n "$BOS_RAW" ]]; then
-            echo "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/cluster_defaults.conf" 1>&2
+            echo "Error: default BOS_DEFAULT '${BOS_DEFAULT[$group]}' set for group '$group' is not a valid  bos sessiontemplate. Check /etc/shasta_wrapper/cluster_defaults.conf" 1>&2
 	    continue
         fi
 
@@ -549,7 +549,7 @@ function cluster_validate {
             RECIPE=$(echo "$RECIPE_RAW" | jq ".[] | select(.id == \"${RECIPE_DEFAULT[$group]}\")")
             if [[ -z "$RECIPE" ]]; then
                 echo
-                die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/cluster_defaults.conf."
+                die "Error config '${RECIPE_DEFAULT[$group]}' set for group '$group' is not a valid recipe. Check config defaults /etc/shasta_wrapper/cluster_defaults.conf."
             fi
         fi
         # Validate cfs configuration used exists

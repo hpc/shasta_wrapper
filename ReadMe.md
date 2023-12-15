@@ -69,9 +69,9 @@ cray ims public-keys list
   }
 ]
 ```
-3. In /etc/cluster_defaults.conf, set the IMS_PUBLIC_KEY_ID to the id from above, and ensure it's uncommented. 
+3. In /etc/shasta_wrapper/cluster_defaults.conf, set the IMS_PUBLIC_KEY_ID to the id from above, and ensure it's uncommented. 
 ### Setting Defaults
-One of the main features of the shasta wrapper is the support of setting defaults for ansible groups. Defaults are set in /etc/cluster_defaults.conf
+One of the main features of the shasta wrapper is the support of setting defaults for ansible groups. Defaults are set in /etc/shasta_wrapper/cluster_defaults.conf
 ```
 ## Compute
 BOS_DEFAULT[Compute]="cos-sessiontemplate-2.0.46" # What bos template to use for boot/configure/etc actions for this group
@@ -82,7 +82,7 @@ IMAGE_GROUPS[Compute]="Compute" # Optional override for what group to use when b
 NOTE: In this file each of those dictionary keys (in the example above "Compute") must match an ansible group in /etc/ansible/hosts.
 
 ### Setting an cfs update targets for git
-Inside of /etc/cfs_defaults.conf we can set default targets to update specific git commitids inside of a cfs config. 
+Inside of /etc/shasta_wrapper/cfs_defaults.conf we can set default targets to update specific git commitids inside of a cfs config. 
 ```
 CFS_BRANCH[cos]=integration # set the branch or tag to update cfs's commits ids to
 CFS_URL[cos]="https://api-gw-service-nmn.local/vcs/cray/cos-config-management.git" # The url that needs to match the git url in cfs

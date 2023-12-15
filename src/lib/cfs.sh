@@ -413,6 +413,10 @@ function cfs_update {
             for LAYER in $(seq 0 $GIT_REPO_COUNT); do
                 cfs_update_git "$FILE" "$LAYER" "$CONFIG" "$GIT_TARGET" || error "Failed to check repo for updates...\n"
             done
+            HAS_ADDITIONAL_INVENTORY=$(cat "$FILE" | jq '.additional_inventory')
+            if [[ "$HAS_ADDITIONAL_INVENTORY" != "null" ]]; then
+                cfs_update_git "$FILE" "i" "$CONFIG" "$GIT_TARGET" || error "Failed to check repo for updates...\n"
+            fi
             rmdir "$TMPDIR" > /dev/null 2>&1
         ) 42>/tmp/lock
 
@@ -443,11 +447,17 @@ function cfs_update_git {
     local GIT_TARGET="$4"
     setup_craycli
 
+    local JQ_BASE_QUERY=""
+    if [[ "$LAYER" == 'i' ]]; then
+        JQ_BASE_QUERY=".additional_inventory"
+    else
+        JQ_BASE_QUERY=".layers[$LAYER]"
+    fi
 
     get_git_password
 
-    LAYER_URL=$(cat "$FILE" | jq ".layers[$LAYER].cloneUrl" | sed 's/"//g')
-    LAYER_CUR_COMMIT=$(cat "$FILE" | jq ".layers[$LAYER].commit" | sed 's/"//g')
+    LAYER_URL=$(cat "$FILE" | jq "${JQ_BASE_QUERY}.cloneUrl" | sed 's/"//g')
+    LAYER_CUR_COMMIT=$(cat "$FILE" | jq "${JQ_BASE_QUERY}.commit" | sed 's/"//g')
     URL=$(echo "$LAYER_URL" | sed "s|https://|https://$GIT_USER:$GIT_PASSWD@|g"| sed "s|http://|http://$GIT_USER:$GIT_PASSWD@|g")
     if [[ -z "$GIT_TARGET" ]]; then
         if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
@@ -469,7 +479,7 @@ function cfs_update_git {
         echo "old commit: $LAYER_CUR_COMMIT"
         echo "new commit: $NEW_COMMIT"
         prompt_yn "Would you like to apply the new commit '$NEW_COMMIT' for '$LAYER_URL'?" || return 0
-        json_set_field "$FILE" ".layers[$LAYER].commit" "$NEW_COMMIT"
+        json_set_field "$FILE" "${JQ_BASE_QUERY}.commit" "$NEW_COMMIT"
         verbose_cmd cray cfs configurations update $CONFIG --file "$CONFIG_DIR/$CONFIG.json" --format json > /dev/null 2>&1
     else
         echo "No updates. commit: '$NEW_COMMIT', old commit: '$LAYER_CUR_COMMIT'"

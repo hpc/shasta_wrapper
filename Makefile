@@ -9,7 +9,7 @@
 # others to do so.
 
 NAME			= shasta_wrapper
-CONFDIR			= /etc
+CONFDIR			= /etc/shasta_wrapper
 LIBDIR			= /usr/share/shasta_wrapper/lib
 SBINDIR			= /usr/sbin
 VERSION			= 0.14.3

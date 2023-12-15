@@ -78,7 +78,7 @@ function cfs_help {
     echo -e "\tjob [action]: Manage cfs jobs"
     echo -e "\tlist : list all ansible configurations"
     echo -e "\tshow [cfs config] : shows all info on a given cfs"
-    echo -e "\tupdate <options> [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/cfs_defaults.conf"
+    echo -e "\tupdate <options> [cfs configs] : update the git repos for the given cfs configuration with the latest based on the branches defined in /etc/shasta_wrapper/cfs_defaults.conf"
 
     exit 1
 }
@@ -335,11 +335,11 @@ function cfs_unconfigured {
     done
 }
 
-# Reads /etc/cfs_defaults.conf to get what git repos we can update with new conig ids
+# Reads /etc/shasta_wrapper/cfs_defaults.conf to get what git repos we can update with new conig ids
 function read_git_config {
     local REPO
 
-    source /etc/cfs_defaults.conf
+    source /etc/shasta_wrapper/cfs_defaults.conf
 
     for REPO in "${!CFS_URL[@]}"; do
         if [[ -z "${CFS_BRANCH[$REPO]}" ]]; then
@@ -355,7 +355,7 @@ function read_git_config {
 }
 
 ## cfs_update
-# Update the commit ids for the given cfs configurations based on what urls and branches are defined in /etc/cfs_defaults.conf. Asks user before making any changes.
+# Update the commit ids for the given cfs configurations based on what urls and branches are defined in /etc/shasta_wrapper/cfs_defaults.conf. Asks user before making any changes.
 function cfs_update {
     local LAYER LAYER_URL FLOCK CONFIG GIT_TARGET=''
 
@@ -435,7 +435,7 @@ function get_git_password {
 }
 
 ## cfs_update_git
-# Given the cfs configuration, update it's commit ids with the commit ids of the beanch specified in /etc/cfs_defaults.conf.
+# Given the cfs configuration, update it's commit ids with the commit ids of the beanch specified in /etc/shasta_wrapper/cfs_defaults.conf.
 function cfs_update_git {
     local FILE="$1"
     local LAYER="$2"
@@ -453,7 +453,7 @@ function cfs_update_git {
         if [[ -n "${CFS_BRANCH_DEFAULT[$LAYER_URL]}" ]]; then
             GIT_TARGET="${CFS_BRANCH_DEFAULT[$LAYER_URL]}"
         else
-            echo "$LAYER_URL is not defined in /etc/cfs_defaults.conf... skipping"
+            echo "$LAYER_URL is not defined in /etc/shasta_wrapper/cfs_defaults.conf... skipping"
             return 1
         fi
     fi

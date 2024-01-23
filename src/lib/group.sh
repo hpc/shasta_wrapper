@@ -284,13 +284,15 @@ function group_build_images {
         if [[ "$MAP" -eq "0" ]]; then
             MAP_TARGET="${BOS_DEFAULT[$GROUP]}"
         fi
+	local TAG="$GROUP"
         if [[ -n "${IMAGE_DEFAULT[$GROUP]}" ]]; then
             image_build \
               -I "${IMAGE_DEFAULT[$GROUP]}" \
               -g "$GROUP" \
               -G "$IMAGE_GROUP" \
               -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
-              -m "$MAP_TARGET" &
+              -m "$MAP_TARGET" \
+	      -t "$TAG_SANITIZED" &
         else
             image_build \
               -r "${RECIPE_DEFAULT[$GROUP]}" \
@@ -298,7 +300,8 @@ function group_build_images {
               -G "$IMAGE_GROUP" \
               -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
               -i "${IMAGE_DEFAULT_NAME[$GROUP]}" \
-              -m "$MAP_TARGET" &
+              -m "$MAP_TARGET" \
+	      -t "$TAG" &
         fi
     done
     echo "See detailed logs in: $IMAGE_LOGDIR/"

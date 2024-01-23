@@ -448,7 +448,7 @@ function image_logwatch {
 ## image_configure
 # Configure an image with cfs
 function image_configure {
-    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP OPTIND ARGS
+    local SESSION_NAME EX_HOST JOB_ID POD_ID NEW_IMAGE_ID IMAGE_GROUP OPTIND ARGS GROUP_NAME
     OPTIND=1
     while getopts "n:" OPTION ; do
         case "$OPTION" in
@@ -490,15 +490,15 @@ function image_configure {
     ## Setup cfs job id
     # We need a group that's lowercase and only containers certain characters
     # that cfs accepts to use it as the cfs job id
-    local GROUP_SANITIZED=$(echo "$GROUP_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
-
     if [[ -z "$SESSION_NAME" ]]; then
-        SESSION_NAME="$GROUP_SANITIZED"`date +%M`
+        SESSION_NAME="$GROUP"`date +%M`
     fi
+    # Sanitize session name
+    local SESSION_NAME_SANITIZED=$(echo "$SESSION_NAME" | awk '{print tolower($0)}' | sed 's/[^a-z0-9]//g')
 
     # Delete any existing cfs session that has the same
     # name to ensure we don't screw things up
-    cfs_job_delete "$SESSION_NAME" > /dev/null 2>&1
+    cfs_job_delete "$SESSION_NAME_SANITIZED" > /dev/null 2>&1
 
     ARGS=""
     for GROUP_NAME in "${GROUP_NAMES[@]}"; do
@@ -518,7 +518,7 @@ function image_configure {
         fi
     	verbose_cmd cray cfs sessions create \
 	    --format json \
-    	    --name "$SESSION_NAME" \
+    	    --name "$SESSION_NAME_SANITIZED" \
     	    --configuration-name "$CONFIG_NAME" \
     	    --target-definition image \
     	    $ARGS 2>&1
@@ -528,43 +528,43 @@ function image_configure {
     done
 
     if [[ $RET -ne 0 ]]; then
-        echo "[$GROUP_NAME] cfs session creation failed! See logs for details"
-        die "[$GROUP_NAME] cfs session creation failed! See logs for details"
+        echo "[$SESSION_NAME] cfs session creation failed! See logs for details"
+        die "[$SESSION_NAME] cfs session creation failed! See logs for details"
     fi
 
     ## Show the logs for the cfs configure job
     #
-    cmd_wait_output "job" cfs_job_describe "$SESSION_NAME"
+    cmd_wait_output "job" cfs_job_describe "$SESSION_NAME_SANITIZED"
 
-    JOB_ID=$(cfs_job_describe $SESSION_NAME  | jq '.status.session.job' | sed 's/"//g')
-    cfs_job_log "$SESSION_NAME"
+    JOB_ID=$(cfs_job_describe $SESSION_NAME_SANITIZED  | jq '.status.session.job' | sed 's/"//g')
+    cfs_job_log "$SESSION_NAME_SANITIZED"
 
-    cmd_wait_output 'complete' cfs_job_describe "$SESSION_NAME"
+    cmd_wait_output 'complete' cfs_job_describe "$SESSION_NAME_SANITIZED"
 
     cfs_job_describe "$SESSION_NAME" | jq '.status.session.succeeded' | grep -q 'true'
     if [[ $? -ne 0 ]]; then
-        echo "[$GROUP_NAME] image configuation failed"
-        die "[$GROUP_NAME] image configuation failed"
+        echo "[$SESSION_NAME] image configuation failed"
+        die "[$SESSION_NAME] image configuation failed"
     fi
 
     ## Validate that we got an image and set that as the RETURN so that if
     # parent function wants it it can use it
 
-    NEW_IMAGE_ID=$(cfs_job_describe "$SESSION_NAME" | jq '.status.artifacts[0].result_id' | sed 's/"//g')
+    NEW_IMAGE_ID=$(cfs_job_describe "$SESSION_NAME_SANITIZED" | jq '.status.artifacts[0].result_id' | sed 's/"//g')
 
     if [[ -z "$NEW_IMAGE_ID" ]]; then
-        echo "[$GROUP_NAME] Could not determine image id for configured image."
-        die "[$GROUP_NAME] Could not determine image id for configured image."
+        echo "[$SESSION_NAME] Could not determine image id for configured image."
+        die "[$SESSION_NAME] Could not determine image id for configured image."
     fi
     verbose_cmd image_describe "$NEW_IMAGE_ID"
     if [[ $? -ne 0 ]]; then
-        echo "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
-        die "[$GROUP_NAME] Error Image Configuration Failed! See logs for details"
+        echo "[$SESSION_NAME] Error Image Configuration Failed! See logs for details"
+        die "[$SESSION_NAME] Error Image Configuration Failed! See logs for details"
     fi
 
     echo "Image successfully configured"
-    echo "[$GROUP_NAME] Configured image created: '$NEW_IMAGE_ID'" 1>&2
-    echo "[$GROUP_NAME] Configured image created: '$NEW_IMAGE_ID'"
+    echo "[$SESSION_NAME] Configured image created: '$NEW_IMAGE_ID'" 1>&2
+    echo "[$SESSION_NAME] Configured image created: '$NEW_IMAGE_ID'"
     RETURN="$NEW_IMAGE_ID"
     return 0
 }

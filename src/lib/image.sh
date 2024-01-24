@@ -242,7 +242,11 @@ function image_build {
 
 
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
-    image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$IMAGE_GROUPS" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+    if [[ -n "$CONFIG_TAG" ]]; then
+        image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$IMAGE_GROUPS" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+    else
+        image_configure "$BARE_IMAGE_ID" "$IMAGE_GROUPS" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+    fi
     if [[ $? -ne 0 ]]; then
         die "[$GROUP_NAME] configure image failed... Not continuing"
     fi
@@ -541,7 +545,7 @@ function image_configure {
 
     cmd_wait_output 'complete' cfs_job_describe "$SESSION_NAME_SANITIZED"
 
-    cfs_job_describe "$SESSION_NAME" | jq '.status.session.succeeded' | grep -q 'true'
+    cfs_job_describe "$SESSION_NAME_SANITIZED" | jq '.status.session.succeeded' | grep -q 'true'
     if [[ $? -ne 0 ]]; then
         echo "[$SESSION_NAME] image configuation failed"
         die "[$SESSION_NAME] image configuation failed"
@@ -608,3 +612,4 @@ function image_defaults {
         fi
     done
 }
+

@@ -44,24 +44,96 @@ function fas_help {
     echo    "USAGE: $0 fas [action]"
     echo    "DESC: fas manages the validation and flashing of firmware to components"
     echo    "ACTIONS:"
-    echo -e "\tcheck [conponent] : check if component needs new firmware."
-    echo -e "\tflash [conponent] : flash firmware of the given components. Note that only components that have a differing firmware version from what is to be flashed will be updated."
+    echo -e "\tcheck [component type] <node or chassis list> : check if component needs new firmware."
+    echo -e "\tflash [component type] <node or chassis list> : flash firmware of the given components. Note that only components that have a differing firmware version from what is to be flashed will be updated."
     echo -e "\tlist : show shasta components can be checked and flashed"
 
     exit 1
+}
+
+function fas_convert2bmc {
+    convert2xname "$@"
+    local NODES=($RETURN )
+    local NODE BMC
+    RETURN=""
+    for NODE in "${NODES[@]}"; do
+        BMC=$(echo $NODE | sed 's/n[0-9]$//g')
+        RETURN="$RETURN $BMC"
+    done
+    RETURN=$(echo $RETURN | sed 's/ /\n/g' | sort -u)
+}
+
+function fas_convert2chassis {
+    local CHASSISES=( $@ )
+    local CHASSIS
+    RETURN=""
+    for CHASSIS in "${CHASSISES[@]}"; do
+        echo $CHASSIS | grep -Pq '^x\d+c\d+b0$'
+        if [[ $? -eq 0 ]]; then
+            RETURN="$RETURN $CHASSIS"
+            continue
+        fi
+        echo $CHASSIS | grep -Pq '^x\d+c\d+$'
+        if [[ $? -eq 0 ]]; then
+            RETURN="$RETURN ${CHASSIS}b0"
+            continue
+        fi
+        die "Invalid Chassis: $CHASSIS"
+    done
+    RETURN=$(echo $RETURN | sed 's/ /\n/g' | sort -u)
+}
+
+function fas_make_fasfile {
+    local SRC_FILE="$1"
+    shift
+    local FAS_COMPONENT="$1"
+    shift
+    local COMPONENTS=( "$@" )
+    local SRC_FILE DST_FILE TARGET TARGETS=()
+
+    local TARGETS=( )
+    if [[ "$FAS_COMPONENT" = Chassis* ]]; then
+        fas_convert2chassis "${COMPONENTS[@]}"
+        TARGETS=( $RETURN ) 
+    else
+        fas_convert2bmc "${COMPONENTS[@]}"
+        TARGETS=( $RETURN )
+    fi
+
+    TARGET_STRING=''
+    for TARGET in "${TARGETS[@]}"; do
+        if [[ -z "$TARGET_STRING" ]]; then
+            TARGET_STRING="$TARGET_STRING$TARGET"
+        else
+            TARGET_STRING="$TARGET_STRING\", \"$TARGET"
+        fi
+    done
+
+    tmpdir
+    DST_FILE="$RETURN/${FAS_COMPONENT}.json"
+
+    jq ". += {\"stateComponentFilter\": { \"xnames\": [\"$TARGET_STRING\"]}}" "$SRC_FILE" > "$DST_FILE"
+    
+    echo "$DST_FILE"
 }
 
 ## fas_check_firmware
 # Look to see if given component(s) have firmware updates
 function fas_check_firmware {
     local FAS_COMPONENT=$1
+    shift
+    local COMPONENTS=$@
     local FAS_FILE="$FAS_SCRIPTS_CHECK/${FAS_COMPONENT}.json"
 
     if [[ -z "$FAS_COMPONENT" ]]; then
-        echo "USAGE: $0 fas check [component]"
+        echo "USAGE: $0 fas check [component type] <node or component list>"
         exit 2
     fi
     setup_craycli
+
+    if [[ -n "${COMPONENTS[@]}" ]]; then
+        FAS_FILE=$(fas_make_fasfile "$FAS_FILE" "$FAS_COMPONENT" "${COMPONENTS[@]}")
+    fi
 
     if [[ ! -f "$FAS_FILE" ]]; then
         die "Error component '$FAS_COMPONENT' no check action found!"
@@ -75,6 +147,10 @@ function fas_check_firmware {
 
     set -e
     ACTION_ID=$(cray fas actions create "$FAS_FILE" --format json | jq -r '.actionID')
+    if [[ $? -ne 0 ]]; then
+        die "fas failed"
+    fi
+
     echo -n "Querying Components"
     set +e
     RET=1
@@ -93,11 +169,11 @@ function fas_check_firmware {
 ## fas_check_firmware
 # flash the given component(s) that have firmware updates
 function fas_flash_firmware {
-    local FAS_COMPONENT=$1
+    local FAS_COMPONENT="$1"
     local FAS_FILE="$FAS_SCRIPTS_FLASH/${FAS_COMPONENT}.json"
 
     if [[ -z "$FAS_COMPONENT" ]]; then
-        echo "USAGE: $0 fas flash [component]"
+        echo "USAGE: $0 fas flash [component type] <node or chassis list>"
         exit 2
     fi
 
@@ -126,9 +202,16 @@ function fas_flash_firmware {
         echo "This is not a flash run. aborting"
         exit 1
     fi
+    if [[ -n "${COMPONENTS[@]}" ]]; then
+        FAS_FILE=$(fas_make_fasfile "$FAS_FILE" "$FAS_COMPONENT" "${COMPONENTS[@]}")
+    fi
+
 
     set -e
     ACTION_ID=$(cray fas actions create "$FAS_FILE" --format json | jq -r '.actionID')
+    if [[ $? -ne 0 ]]; then
+        die "fas failed"
+    fi
 
     echo
     set +e
@@ -150,7 +233,7 @@ function fas_flash_firmware {
 # lists the available components
 function fas_list {
     echo "=== Available FAS Actions ==="
-    echo "# Check Component Options #"
+    echo "# Check Component Types #"
     local CHECK_FILES=$(ls $FAS_SCRIPTS_CHECK | grep '\.json$' | sed 's/.json$//g')
     if [[ -n "$CHECK_FILES" ]]; then
         echo "$CHECK_FILES"
@@ -159,7 +242,7 @@ function fas_list {
         echo "Get them from https://github.com/Cray-HPE/docs-csm/blob/main/operations/firmware/FAS_Use_Cases.md#update-chassis-management-module-firmware"
     fi
     echo
-    echo "# Flash Component Options #"
+    echo "# Flash Component Types #"
     local FLASH_FILES=$(ls $FAS_SCRIPTS_FLASH | grep '\.json$' | sed 's/.json$//g')
     if [[ -n "$FLASH_FILES" ]]; then
         echo "$FLASH_FILES"
@@ -168,3 +251,4 @@ function fas_list {
         echo "Get them from https://github.com/Cray-HPE/docs-csm/blob/main/operations/firmware/FAS_Use_Cases.md#update-chassis-management-module-firmware"
     fi
 }
+

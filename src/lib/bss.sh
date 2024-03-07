@@ -49,6 +49,7 @@ function bss_help {
     echo -e "\tshow [node] : show details about a node's settings"
     echo -e "\tdescribe [node] : same as show"
     echo -e "\tmap [image] [node list] : Change the image to boot node with to the provided"
+    echo -e "\update_param [key] [value] [node list] : Change a key/value pair in the kernel command line args"
 }
 
 function bss_list {
@@ -117,7 +118,7 @@ function bss_update_param {
                 NEW_PARAM_STRING="$NEW_PARAM_STRING $PARAM"
             fi
         done
-        if [[ -z "$UPDTED" ]]; then
+        if [[ -z "$UPDATED" ]]; then
             NEW_PARAM_STRING="$NEW_PARAM_STRING ${KEY}=$VALUE"
         fi
         cray bss bootparameters update --params "$NEW_PARAM_STRING" --hosts "$NODE"

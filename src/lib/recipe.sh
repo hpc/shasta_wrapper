@@ -149,7 +149,7 @@ function recipe_clone {
 
     local S3_ARTIFACT_BUCKET=ims
     local NEW_ARTIFACT_FILE="$NEW_RECIPE_NAME.tar.gz"
-    local RECIPE RECIPE_NAME S3_ARTIFACT_KEY ARTIFACT_FILE NEW_RECIPE_ID
+    local RECIPE RECIPE_NAME S3_ARTIFACT_KEY ARTIFACT_FILE NEW_RECIPE_ID TEMPLATE_DICTIONARY_KEYS TEMPLATE_DICTIONARY_VALUES ARGS
 
     if [[ -z "$RECIPE_ID" || -z "$NEW_RECIPE_NAME" ]]; then
         echo "USAGE $0 recipe clone <recipe id> <new name>"
@@ -165,6 +165,8 @@ function recipe_clone {
     RECIPE_NAME=$(echo "$RECIPE" | jq '.name' | sed 's/"//g')
     ARTIFACT_FILE="$RECIPE_NAME.tar.gz"
     S3_ARTIFACT_KEY=$(echo "$RECIPE" | jq '.link.path' | sed 's/"//g' | sed 's|^s3://ims/||' )
+    TEMPLATE_DICTIONARY_KEYS=$(echo "$RECIPE" | jq -r '.template_dictionary[].key' | xargs | sed 's/ /,/g' )
+    TEMPLATE_DICTIONARY_VALUES=$(echo "$RECIPE" | jq -r '.template_dictionary[].value'| xargs | sed 's/ /,/g' )
 
     tmpdir
     TMPDIR="$RETURN"
@@ -185,9 +187,15 @@ function recipe_clone {
 
     verbose_cmd tar cvfz ../$NEW_ARTIFACT_FILE .
 
-
-    echo "# cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json"
-    NEW_RECIPE_ID=$(cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json | jq '.id' | sed 's/"//g')
+    ARGS=""
+    if [[ -n "$TEMPLATE_DICTIONARY_KEYS" ]]; then
+        ARGS+=" --template-dictionary-key $TEMPLATE_DICTIONARY_KEYS"
+    fi
+    if [[ -n "$TEMPLATE_DICTIONARY_VALUES" ]]; then
+        ARGS+=" --template-dictionary-value $TEMPLATE_DICTIONARY_VALUES"
+    fi
+    echo "# cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json $ARGS"
+    NEW_RECIPE_ID=$(cray ims recipes create --name "$NEW_RECIPE_NAME" --recipe-type kiwi-ng --linux-distribution sles15 --format json $ARGS | jq '.id' | sed 's/"//g')
 
 
     verbose_cmd cray artifacts create ims recipes/$NEW_RECIPE_ID/$NEW_ARTIFACT_FILE ../$NEW_ARTIFACT_FILE

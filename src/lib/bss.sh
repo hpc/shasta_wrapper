@@ -34,6 +34,10 @@ function bss {
             shift
             bss_update_param "$@"
             ;;
+        delete_param)
+            shift
+            bss_update_param "$@"
+            ;;
         *)
             shift
             bss_help
@@ -50,6 +54,7 @@ function bss_help {
     echo -e "\tdescribe [node] : same as show"
     echo -e "\tmap [image] [node list] : Change the image to boot node with to the provided"
     echo -e "\update_param [key] [value] [node list] : Change a key/value pair in the kernel command line args"
+    echo -e "\delete_param [key] [node list] : Delete a key/value pair in the kernel command line args"
 }
 
 function bss_list {
@@ -123,5 +128,36 @@ function bss_update_param {
         fi
         cray bss bootparameters update --params "$NEW_PARAM_STRING" --hosts "$NODE"
         echo "$NODE: set $KEY=$VALUE"
+    done
+}
+
+function bss_delete_param {
+    KEY="$1"
+    shift
+    local NODE UPDATED
+    declare -a NODES PARAMS
+
+    if [[ -z "$KEY" ]]; then
+        echo "USAGE: $0 bss delete_param <key> <nodelist>"
+        return 1
+    fi
+
+    convert2xname "$@"
+    NODES=( $RETURN )
+    for NODE in "$NODES"; do
+        PARAMS=( $(cray bss bootparameters list --name $NODE --format json | jq -r '.[].params' | sed 's/ /\n/g') )
+        NEW_PARAM_STRING=""
+        for PARAM in "${PARAMS[@]}"; do
+            if [[ "$PARAM" == $KEY=* ]]; then
+                NEW_PARAM_STRING="$NEW_PARAM_STRING"
+            else
+                NEW_PARAM_STRING="$NEW_PARAM_STRING $PARAM"
+            fi
+        done
+        if [[ -z "$NEW_PARAM_STRING" ]]; then
+            die "Failed to update bss parameters"
+        fi
+        cray bss bootparameters update --params "$NEW_PARAM_STRING" --hosts "$NODE"
+        echo "$NODE: deleted $KEY"
     done
 }

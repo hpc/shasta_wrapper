@@ -237,10 +237,10 @@ function bos_update_template {
     setup_craycli
 
     set -e
-    bos_describe "$TEMPLATE" | jq 'del(.name)' > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    bos_describe "$TEMPLATE" | jq 'del(.name)' | jq 'del(.tenant)' > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     json_set_field "$BOS_CONFIG_DIR/$TEMPLATE.json" "$KEY" "$VALUE"
     cray bos sessiontemplates create --file "$BOS_CONFIG_DIR/$TEMPLATE.json" $TEMPLATE > /dev/null 2>&1
-    bos_describe "$TEMPLATE" | jq 'del(.name)' > "$BOS_CONFIG_DIR/$TEMPLATE.json"
+    bos_describe "$TEMPLATE" | jq 'del(.name)' | jq 'del(.tenant)' > "$BOS_CONFIG_DIR/$TEMPLATE.json"
     cat "$BOS_CONFIG_DIR/$TEMPLATE.json" | jq "$KEY" > /dev/null
     set +e
     return $?

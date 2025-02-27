@@ -153,14 +153,14 @@ function image_delete {
 ## image_build
 # Build a bare image from recipe, and configure it via cfs.
 function image_build {
-    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE FROM_IMAGE BSS_MAP IMAGE_GROUPS
+    local EX_HOST BARE_IMAGE_ID CONFIG_IMAGE_ID CONFIG_JOB_NAME RECIPE_ID GROUP_NAME CONFIG_NAME NEW_IMAGE_NAME BOS_TEMPLATE FROM_IMAGE BSS_MAP IMAGE_GROUPS_LOCAL
     OPTIND=1
     while getopts "bc:g:G:i:m:r:t:I:C" OPTION ; do
         case "$OPTION" in
             b) BSS_MAP=1 ;;
             c) CONFIG_NAME="$OPTARG" ;;
             g) GROUP_NAME="$OPTARG" ;;
-            G) IMAGE_GROUPS="$OPTARG" ;;
+            G) IMAGE_GROUPS_LOCAL="$OPTARG" ;;
             i) NEW_IMAGE_NAME="$OPTARG" ;;
             I) FROM_IMAGE="$OPTARG" ;;
             m) BOS_TEMPLATE="$OPTARG" ;;
@@ -193,8 +193,8 @@ function image_build {
         BOS_TEMPLATE="$1"
         shift
     fi
-    if [[ -z "$IMAGE_GROUPS" ]]; then
-        IMAGE_GROUPS="$GROUP_NAME"
+    if [[ -z "$IMAGE_GROUPS_LOCAL" ]]; then
+        IMAGE_GROUPS_LOCAL="$GROUP_NAME"
     fi
 
     if [[ -z "$GROUP_NAME" || -z "$CONFIG_NAME" || -z "$FROM_IMAGE" && -z "$RECIPE_ID" ]]; then
@@ -247,9 +247,9 @@ function image_build {
 
     echo "[$GROUP_NAME] Configure image started. Full logs at: '$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log'"
     if [[ -n "$CONFIG_TAG" ]]; then
-        image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$IMAGE_GROUPS" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+        image_configure -n "$CONFIG_TAG" "$BARE_IMAGE_ID" "$IMAGE_GROUPS_LOCAL" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     else
-        image_configure "$BARE_IMAGE_ID" "$IMAGE_GROUPS" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
+        image_configure "$BARE_IMAGE_ID" "$IMAGE_GROUPS_LOCAL" "$CONFIG_NAME" > "$IMAGE_LOGDIR/config-${NEW_IMAGE_NAME}.log"
     fi
     if [[ $? -ne 0 ]]; then
         die "[$GROUP_NAME] configure image failed... Not continuing"

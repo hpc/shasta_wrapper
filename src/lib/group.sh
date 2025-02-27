@@ -321,7 +321,7 @@ function group_build_images {
               -G "$IMAGE_GROUP" \
               -c "${CONFIG_IMAGE_DEFAULT[$GROUP]}" \
               -m "$MAP_TARGET" \
-	      -t "$TAG_SANITIZED" &
+	      -t "$TAG" &
         else
             image_build \
               -r "${RECIPE_DEFAULT[$GROUP]}" \
